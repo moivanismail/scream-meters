@@ -1,0 +1,158 @@
+[
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-g++ -o .pio/build/nanoatmega328new/FrameworkArduino/CDC.cpp.o -c -fno-exceptions -fno-threadsafe-statics -fpermissive -std=gnu++11 -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/CDC.cpp",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/CDC.cpp",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/CDC.cpp.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-g++ -o .pio/build/nanoatmega328new/FrameworkArduino/HardwareSerial.cpp.o -c -fno-exceptions -fno-threadsafe-statics -fpermissive -std=gnu++11 -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/HardwareSerial.cpp",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/HardwareSerial.cpp",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/HardwareSerial.cpp.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-g++ -o .pio/build/nanoatmega328new/FrameworkArduino/HardwareSerial0.cpp.o -c -fno-exceptions -fno-threadsafe-statics -fpermissive -std=gnu++11 -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/HardwareSerial0.cpp",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/HardwareSerial0.cpp",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/HardwareSerial0.cpp.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-g++ -o .pio/build/nanoatmega328new/FrameworkArduino/HardwareSerial1.cpp.o -c -fno-exceptions -fno-threadsafe-statics -fpermissive -std=gnu++11 -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/HardwareSerial1.cpp",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/HardwareSerial1.cpp",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/HardwareSerial1.cpp.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-g++ -o .pio/build/nanoatmega328new/FrameworkArduino/HardwareSerial2.cpp.o -c -fno-exceptions -fno-threadsafe-statics -fpermissive -std=gnu++11 -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/HardwareSerial2.cpp",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/HardwareSerial2.cpp",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/HardwareSerial2.cpp.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-g++ -o .pio/build/nanoatmega328new/FrameworkArduino/HardwareSerial3.cpp.o -c -fno-exceptions -fno-threadsafe-statics -fpermissive -std=gnu++11 -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/HardwareSerial3.cpp",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/HardwareSerial3.cpp",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/HardwareSerial3.cpp.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-g++ -o .pio/build/nanoatmega328new/FrameworkArduino/IPAddress.cpp.o -c -fno-exceptions -fno-threadsafe-statics -fpermissive -std=gnu++11 -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/IPAddress.cpp",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/IPAddress.cpp",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/IPAddress.cpp.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-g++ -o .pio/build/nanoatmega328new/FrameworkArduino/PluggableUSB.cpp.o -c -fno-exceptions -fno-threadsafe-statics -fpermissive -std=gnu++11 -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/PluggableUSB.cpp",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/PluggableUSB.cpp",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/PluggableUSB.cpp.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-g++ -o .pio/build/nanoatmega328new/FrameworkArduino/Print.cpp.o -c -fno-exceptions -fno-threadsafe-statics -fpermissive -std=gnu++11 -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/Print.cpp",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/Print.cpp",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/Print.cpp.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-g++ -o .pio/build/nanoatmega328new/FrameworkArduino/Stream.cpp.o -c -fno-exceptions -fno-threadsafe-statics -fpermissive -std=gnu++11 -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/Stream.cpp",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/Stream.cpp",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/Stream.cpp.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-g++ -o .pio/build/nanoatmega328new/FrameworkArduino/Tone.cpp.o -c -fno-exceptions -fno-threadsafe-statics -fpermissive -std=gnu++11 -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/Tone.cpp",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/Tone.cpp",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/Tone.cpp.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-g++ -o .pio/build/nanoatmega328new/FrameworkArduino/USBCore.cpp.o -c -fno-exceptions -fno-threadsafe-statics -fpermissive -std=gnu++11 -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/USBCore.cpp",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/USBCore.cpp",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/USBCore.cpp.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-gcc -o .pio/build/nanoatmega328new/FrameworkArduino/WInterrupts.c.o -c -std=gnu11 -fno-fat-lto-objects -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/WInterrupts.c",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/WInterrupts.c",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/WInterrupts.c.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-g++ -o .pio/build/nanoatmega328new/FrameworkArduino/WMath.cpp.o -c -fno-exceptions -fno-threadsafe-statics -fpermissive -std=gnu++11 -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/WMath.cpp",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/WMath.cpp",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/WMath.cpp.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-g++ -o .pio/build/nanoatmega328new/FrameworkArduino/WString.cpp.o -c -fno-exceptions -fno-threadsafe-statics -fpermissive -std=gnu++11 -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/WString.cpp",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/WString.cpp",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/WString.cpp.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-g++ -o .pio/build/nanoatmega328new/FrameworkArduino/abi.cpp.o -c -fno-exceptions -fno-threadsafe-statics -fpermissive -std=gnu++11 -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/abi.cpp",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/abi.cpp",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/abi.cpp.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-gcc -o .pio/build/nanoatmega328new/FrameworkArduino/hooks.c.o -c -std=gnu11 -fno-fat-lto-objects -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/hooks.c",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/hooks.c",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/hooks.c.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-g++ -o .pio/build/nanoatmega328new/FrameworkArduino/main.cpp.o -c -fno-exceptions -fno-threadsafe-statics -fpermissive -std=gnu++11 -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/main.cpp",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/main.cpp",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/main.cpp.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-g++ -o .pio/build/nanoatmega328new/FrameworkArduino/new.cpp.o -c -fno-exceptions -fno-threadsafe-statics -fpermissive -std=gnu++11 -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/new.cpp",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/new.cpp",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/new.cpp.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-gcc -o .pio/build/nanoatmega328new/FrameworkArduino/wiring.c.o -c -std=gnu11 -fno-fat-lto-objects -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/wiring.c",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/wiring.c",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/wiring.c.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-gcc -o .pio/build/nanoatmega328new/FrameworkArduino/wiring_analog.c.o -c -std=gnu11 -fno-fat-lto-objects -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/wiring_analog.c",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/wiring_analog.c",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/wiring_analog.c.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-gcc -o .pio/build/nanoatmega328new/FrameworkArduino/wiring_digital.c.o -c -std=gnu11 -fno-fat-lto-objects -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/wiring_digital.c",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/wiring_digital.c",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/wiring_digital.c.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-gcc -mmcu=atmega328p -x assembler-with-cpp -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs -c -o .pio/build/nanoatmega328new/FrameworkArduino/wiring_pulse.S.o /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/wiring_pulse.S",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/wiring_pulse.S",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/wiring_pulse.S.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-gcc -o .pio/build/nanoatmega328new/FrameworkArduino/wiring_pulse.c.o -c -std=gnu11 -fno-fat-lto-objects -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/wiring_pulse.c",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/wiring_pulse.c",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/wiring_pulse.c.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-gcc -o .pio/build/nanoatmega328new/FrameworkArduino/wiring_shift.c.o -c -std=gnu11 -fno-fat-lto-objects -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs /Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/wiring_shift.c",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino/wiring_shift.c",
+        "output": ".pio/build/nanoatmega328new/FrameworkArduino/wiring_shift.c.o"
+    },
+    {
+        "command": "/Users/moivan/.platformio/packages/toolchain-atmelavr/bin/avr-g++ -o .pio/build/nanoatmega328new/src/main.cpp.o -c -fno-exceptions -fno-threadsafe-statics -fpermissive -std=gnu++11 -mmcu=atmega328p -Os -Wall -ffunction-sections -fdata-sections -flto -DPLATFORMIO=60119 -DARDUINO_AVR_NANO -DF_CPU=16000000L -DARDUINO_ARCH_AVR -DARDUINO=10808 -Iinclude -Isrc -I/Users/moivan/.platformio/packages/framework-arduino-avr/cores/arduino -I/Users/moivan/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs src/main.cpp",
+        "directory": "/Users/moivan/Documents/PlatformIO/Projects/scream-meters",
+        "file": "src/main.cpp",
+        "output": ".pio/build/nanoatmega328new/src/main.cpp.o"
+    }
+]
