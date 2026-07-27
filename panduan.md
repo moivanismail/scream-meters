@@ -8,7 +8,7 @@ Panduan ini berisi semua instruksi yang diperlukan untuk membangun, merakit, dan
 
 1. **Mikrokontroler**: ESP32 Classic Development Board (30-Pin / 38-Pin CP2102)
 2. **Sensor Suara**: MAX4466 Electret Microphone Preamplifier
-3. **LED Bar**: WS2812B NeoPixel RGB LED Strip (13 LED)
+3. **LED Bar**: WS2812B NeoPixel RGB LED Strip (55 LED)
 4. **Modul Suara**: DFPlayer Mini MP3 Player + Speaker (4Ω 3W)
 5. **Tombol**: 2x Push Button (Start & Reset)
 6. **Resistor**: 1x Resistor 1kΩ (Wajib dipasang seri pada jalur RX DFPlayer)
@@ -75,21 +75,21 @@ Metode rata-rata deviasi mutlak ini sangat stabil dan toleran terhadap spike noi
 
 ### 4. Pemetaan LED Kuadratik (Quadratic Curve)
 Untuk memberikan pengalaman bermain yang menantang (arcade feel), kenaikan LED bar tidak bersifat linear melainkan kuadratik (`ratio * ratio`).
-* Suara sedang/teriakan kecil hanya akan menaikkan 1-3 LED hijau.
-* Untuk menyalakan LED kuning/merah bagian atas hingga penuh (LED ke-13), pemain dipaksa untuk berteriak dengan energi penuh (level suara mendekati batas maksimal `1700`).
+* Suara sedang/teriakan kecil hanya akan menaikkan beberapa LED hijau.
+* Untuk menyalakan LED kuning/merah bagian atas hingga penuh (LED ke-55), pemain dipaksa untuk berteriak dengan energi penuh (level suara mendekati batas maksimal `1700`).
 
 ---
 
 ## 🕹️ Panduan Penggunaan & Pengoperasian
 
-1. **Inisialisasi Booting**: Saat board dinyalakan, diamkan sirkuit selama 2 detik untuk kalibrasi otomatis hening. NeoPixel akan berputar oranye lalu berkedip hijau 3 kali saat siap digunakan.
+1. **Inisialisasi Booting**: Saat board dinyalakan, diamkan sirkuit selama 2 detik untuk kalibrasi otomatis hening. Sistem akan memutar musik startup (`0003.mp3`) dan NeoPixel akan menampilkan efek putaran oranye lalu berkedip hijau 3 kali saat siap digunakan.
 2. **Reset Rekor**: Tekan tombol Reset (GPIO 25) sekali untuk menyetel ulang rekor tertinggi tersimpan di EEPROM ke nilai default **`1000`** (LED merah akan berkedip 3 kali).
 3. **Mulai Bermain**:
    * Tekan tombol Start (GPIO 26). Musik yang berjalan akan langsung dimatikan secara instan dan countdown visual dimulai.
    * Saat tulisan "MULAI BERTERIAK!" muncul di serial, berteriaklah ke arah mikrofon selama 5 detik.
    * Indikator LED Bar akan naik secara dinamis.
 4. **Hasil Rekor**:
-   * Jika rekor baru tercapai, musik perayaan (indeks track 1) diputar dengan animasi pelangi (*rainbow chase*) selama 6 detik.
-   * Jika gagal melampaui rekor, musik gagal (indeks track 2) diputar dengan visualisasi puncak teriakan Anda.
+   * Jika rekor baru tercapai, musik perayaan/menang (`0001.mp3`) diputar dengan animasi pelangi (*rainbow chase*) selama 6 detik.
+   * Jika gagal melampaui rekor, musik gagal (`0002.mp3`) diputar dengan visualisasi puncak teriakan Anda.
    * Setelah itu sistem kembali ke standby (`STATE_IDLE`). Musik perayaan/gagal tetap akan berputar sampai selesai (atau mati instan jika tombol Start ditekan kembali).
 5. **Jarak Uji Coba**: Jarak ideal berteriak adalah **30 cm s.d. 50 cm** dari mikrofon.

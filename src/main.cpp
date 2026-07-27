@@ -12,7 +12,7 @@
 #define RESET_BUTTON_PIN    25    // Pin GPIO25 terhubung ke tombol reset high score (ke GND)
 #define START_BUTTON_PIN    26    // Pin GPIO26 terhubung ke tombol start game (ke GND)
 
-#define NUM_LEDS            13    // Jumlah total LED WS2812B
+#define NUM_LEDS            55    // Jumlah total LED WS2812B
 #define EEPROM_ADDR_SCORE   0     // Alamat EEPROM untuk menyimpan rekor tertinggi (2 byte)
 #define DEFAULT_HIGH_SCORE  1000  // Nilai default rekor jika EEPROM kosong (skala 12-bit MAD)
 #define MAX_SCREAM_VAL      1700  // Amplitudo suara maksimum yang diharapkan (skala 12-bit MAD)
@@ -20,7 +20,7 @@
 #define SAMPLING_WINDOW_MS  50    // Window pembacaan sampel mic untuk mengukur amplitudo
 
 // Konstanta Command & Status DFPlayer
-#define DF_CMD_PLAY_TRACK     0x03
+#define DF_CMD_PLAY_TRACK     0x12    // Menggunakan command 0x12 untuk memutar dari folder /MP3 berdasarkan nama file
 #define DF_CMD_SET_VOLUME     0x06
 #define DF_CMD_PAUSE          0x0E
 #define DF_CMD_STOP           0x16
@@ -138,7 +138,7 @@ void setup() {
     setDFPlayerVolume(15);
     delay(100);
     
-    Serial.println(F("Memutar lagu tes play(3) (menggunakan cmd 0x03)..."));
+    Serial.println(F("Memutar lagu startup 0003.mp3 dari folder /MP3..."));
     playDFPlayerTrack(3);
   }
 
@@ -191,6 +191,11 @@ void loop() {
       highScore = DEFAULT_HIGH_SCORE;
       EEPROM.put(EEPROM_ADDR_SCORE, highScore);
       EEPROM.commit();
+      
+      // Putar lagu 0003.mp3 saat reset
+      if (dfPlayerOnline) {
+        playDFPlayerTrack(3);
+      }
       
       // Kedipkan LED warna merah 3 kali sebagai indikasi reset sukses
       for (int i = 0; i < 3; i++) {
@@ -312,9 +317,9 @@ void loop() {
         // Melampaui rekor tertinggi!
         currentState = STATE_CELEBRATION;
       } else {
-        // Gagal melampaui rekor, putar musik/efek suara gagal (file indeks ke-2)
+        // Gagal melampaui rekor, putar musik/efek suara gagal 0002.mp3 dari folder /MP3
         if (dfPlayerOnline) {
-          playDFPlayerTrack(2); // Memutar file indeks ke-2
+          playDFPlayerTrack(2); // Memutar file indeks ke-2 (0002.mp3)
         }
         
         // Jalankan animasi biasa
@@ -403,14 +408,14 @@ void displayVolumeLevel(int numLedsLit) {
   pixels.clear();
   for (int i = 0; i < NUM_LEDS; i++) {
     if (i < numLedsLit) {
-      if (i < 6) {
-        // LED 0 - 5: Hijau
+      if (i < 25) {
+        // LED 0 - 24: Hijau
         pixels.setPixelColor(i, pixels.Color(0, 150, 0));
-      } else if (i < 10) {
-        // LED 6 - 9: Kuning/Oranye
+      } else if (i < 42) {
+        // LED 25 - 41: Kuning/Oranye
         pixels.setPixelColor(i, pixels.Color(150, 80, 0));
       } else {
-        // LED 10 - 12: Merah (Scream!)
+        // LED 42 - 54: Merah (Scream!)
         pixels.setPixelColor(i, pixels.Color(200, 0, 0));
       }
     } else {
@@ -504,17 +509,22 @@ void calibrateNoiseFloor() {
   int calLed = 0;
 
   while (millis() - calStart < 1500) {
-    unsigned int level = getSoundLevel(50);
+    unsigned int level = getSoundLevel(10);
     if (level > maxAmbient) {
       maxAmbient = level;
     }
     
-    // Tampilkan LED oranye berputar selama kalibrasi
+    // Tampilkan LED oranye berputar dengan efek ekor (trail) selama kalibrasi
     pixels.clear();
-    pixels.setPixelColor(calLed, pixels.Color(120, 60, 0));
+    for (int t = 0; t < 8; t++) {
+      int idx = (calLed - t + NUM_LEDS) % NUM_LEDS;
+      int brightness = 120 - (t * 15);
+      if (brightness < 0) brightness = 0;
+      pixels.setPixelColor(idx, pixels.Color(brightness, brightness / 2, 0));
+    }
     pixels.show();
     calLed = (calLed + 1) % NUM_LEDS;
-    safeDelay(50);
+    safeDelay(10); // Gabungan dengan getSoundLevel(10) menghasilkan jeda ~20ms (50 FPS)
   }
 
   // Set noise floor 30 level di atas puncak kebisingan sekitar agar tidak gampang terpicu
@@ -553,19 +563,19 @@ void displaySimpleColor(int count, uint32_t color) {
  * Menjalankan animasi countdown visual 3-2-1 sebelum mulai merekam teriakan.
  */
 void runCountdownAnimation() {
-  // Hitung mundur 3 (Menyalakan 9 LED - Jingga)
+  // Hitung mundur 3 (Menyalakan 3/4 LED - Jingga)
   Serial.println(F("Countdown: 3"));
-  displaySimpleColor(9, pixels.Color(150, 50, 0));
+  displaySimpleColor((NUM_LEDS * 3) / 4, pixels.Color(150, 50, 0));
   safeDelay(1000);
   
-  // Hitung mundur 2 (Menyalakan 6 LED - Kuning)
+  // Hitung mundur 2 (Menyalakan 2/4 LED - Kuning)
   Serial.println(F("Countdown: 2"));
-  displaySimpleColor(6, pixels.Color(120, 90, 0));
+  displaySimpleColor((NUM_LEDS * 2) / 4, pixels.Color(120, 90, 0));
   safeDelay(1000);
   
-  // Hitung mundur 1 (Menyalakan 3 LED - Merah)
+  // Hitung mundur 1 (Menyalakan 1/4 LED - Merah)
   Serial.println(F("Countdown: 1"));
-  displaySimpleColor(3, pixels.Color(150, 0, 0));
+  displaySimpleColor((NUM_LEDS * 1) / 4, pixels.Color(150, 0, 0));
   safeDelay(1000);
   
   // MULAI! (Menyalakan seluruh LED - Hijau)
