@@ -8,7 +8,7 @@ Panduan ini berisi semua instruksi yang diperlukan untuk membangun, merakit, dan
 
 1. **Mikrokontroler**: ESP32 Classic Development Board (30-Pin / 38-Pin CP2102)
 2. **Sensor Suara**: MAX4466 Electret Microphone Preamplifier
-3. **LED Bar**: WS2812B NeoPixel RGB LED Strip (55 LED)
+3. **LED Bar**: WS2812B NeoPixel RGB LED Strip (62 LED)
 4. **Modul Suara**: DFPlayer Mini MP3 Player + Speaker (4Ω 3W)
 5. **Tombol**: 2x Push Button (Start & Reset)
 6. **Resistor**: 1x Resistor 1kΩ (Wajib dipasang seri pada jalur RX DFPlayer)
@@ -76,7 +76,7 @@ Metode rata-rata deviasi mutlak ini sangat stabil dan toleran terhadap spike noi
 ### 4. Pemetaan LED Kuadratik (Quadratic Curve)
 Untuk memberikan pengalaman bermain yang menantang (arcade feel), kenaikan LED bar tidak bersifat linear melainkan kuadratik (`ratio * ratio`).
 * Suara sedang/teriakan kecil hanya akan menaikkan beberapa LED hijau.
-* Untuk menyalakan LED kuning/merah bagian atas hingga penuh (LED ke-55), pemain dipaksa untuk berteriak dengan energi penuh (level suara mendekati batas maksimal `1700`).
+* Untuk menyalakan LED kuning/merah bagian atas hingga penuh (LED ke-62), pemain dipaksa untuk berteriak dengan energi penuh (level suara mendekati batas maksimal `1700`).
 
 ---
 

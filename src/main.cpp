@@ -12,7 +12,7 @@
 #define RESET_BUTTON_PIN    25    // Pin GPIO25 terhubung ke tombol reset high score (ke GND)
 #define START_BUTTON_PIN    26    // Pin GPIO26 terhubung ke tombol start game (ke GND)
 
-#define NUM_LEDS            55    // Jumlah total LED WS2812B
+#define NUM_LEDS            62    // Jumlah total LED WS2812B
 #define EEPROM_ADDR_SCORE   0     // Alamat EEPROM untuk menyimpan rekor tertinggi (2 byte)
 #define DEFAULT_HIGH_SCORE  1000  // Nilai default rekor jika EEPROM kosong (skala 12-bit MAD)
 #define MAX_SCREAM_VAL      1700  // Amplitudo suara maksimum yang diharapkan (skala 12-bit MAD)
@@ -200,7 +200,7 @@ void loop() {
       // Kedipkan LED warna merah 3 kali sebagai indikasi reset sukses
       for (int i = 0; i < 3; i++) {
         for (int l = 0; l < NUM_LEDS; l++) {
-          pixels.setPixelColor(l, pixels.Color(150, 0, 0));
+          pixels.setPixelColor(l, pixels.Color(255, 0, 0));
         }
         pixels.show();
         safeDelay(200);
@@ -245,7 +245,7 @@ void loop() {
         // Buat indikator letak rekor tertinggi berdenyut (breathing effect) warna biru
         unsigned long now = millis();
         float breath = (exp(sin(now / 1000.0 * PI)) - 0.36787944) * 108.0;
-        uint8_t brightness = map(breath, 0, 255, 10, 80); // Skala redup agar nyaman di mata
+        uint8_t brightness = map(breath, 0, 255, 30, 180); // Skala nyaman namun terlihat di luar ruangan
 
         pixels.clear();
         // Petakan letak rekor tertinggi ke index LED (Quadratic Mapping agar selaras dengan game)
@@ -406,17 +406,19 @@ unsigned int getSoundLevel(unsigned long durationMs) {
  */
 void displayVolumeLevel(int numLedsLit) {
   pixels.clear();
+  int greenMax = (NUM_LEDS * 25) / 55;   // Skala dinamis berdasarkan rasio asli
+  int orangeMax = (NUM_LEDS * 42) / 55;  // Skala dinamis berdasarkan rasio asli
   for (int i = 0; i < NUM_LEDS; i++) {
     if (i < numLedsLit) {
-      if (i < 25) {
-        // LED 0 - 24: Hijau
-        pixels.setPixelColor(i, pixels.Color(0, 150, 0));
-      } else if (i < 42) {
-        // LED 25 - 41: Kuning/Oranye
-        pixels.setPixelColor(i, pixels.Color(150, 80, 0));
+      if (i < greenMax) {
+        // LED Hijau (Full Brightness)
+        pixels.setPixelColor(i, pixels.Color(0, 255, 0));
+      } else if (i < orangeMax) {
+        // LED Kuning/Oranye (Full Brightness)
+        pixels.setPixelColor(i, pixels.Color(255, 136, 0));
       } else {
-        // LED 42 - 54: Merah (Scream!)
-        pixels.setPixelColor(i, pixels.Color(200, 0, 0));
+        // LED Merah (Full Brightness)
+        pixels.setPixelColor(i, pixels.Color(255, 0, 0));
       }
     } else {
       pixels.setPixelColor(i, pixels.Color(0, 0, 0)); // Matikan LED sisa
@@ -426,27 +428,96 @@ void displayVolumeLevel(int numLedsLit) {
 }
 
 /**
- * Animasi Kedip hasil teriakan biasa (jika tidak melampaui rekor).
- * Mengedipkan level yang dicapai sebanyak 3 kali, lalu fade out secara berangsur.
+ * Animasi hasil teriakan biasa (jika tidak melampaui rekor).
+ * Mengedipkan level yang dicapai sebanyak 3 kali, lalu bar utama runtuh secara cepat dengan efek gravitasi, 
+ * diikuti oleh pixel puncak (peak hold) yang turun perlahan secara dinamis.
  */
 void runNormalResultAnimation(int finalLeds) {
-  // Kedipkan level hasil teriakan
-  for (int flash = 0; flash < 3; flash++) {
-    displayVolumeLevel(finalLeds);
-    safeDelay(300);
+  if (finalLeds <= 0) {
     pixels.clear();
     pixels.show();
-    safeDelay(200);
+    return;
   }
 
-  // Tampilkan level, lalu matikan satu per satu dari atas ke bawah (efek turun)
-  displayVolumeLevel(finalLeds);
-  safeDelay(300);
-  for (int i = finalLeds - 1; i >= 0; i--) {
-    pixels.setPixelColor(i, pixels.Color(0, 0, 0));
+  // 1. Kedipkan level hasil teriakan sebanyak 3 kali untuk memperjelas hasil
+  for (int flash = 0; flash < 3; flash++) {
+    displayVolumeLevel(finalLeds);
+    safeDelay(250);
+    pixels.clear();
     pixels.show();
-    safeDelay(80);
+    safeDelay(150);
   }
+
+  // Tampilkan level volume puncak penuh sejenak sebelum animasi runtuh
+  displayVolumeLevel(finalLeds);
+  safeDelay(500);
+
+  // 2. Animasi Runtuh Gravitasi (Gravity Collapse) dengan Peak Hold
+  float barHeight = finalLeds;
+  float barVelocity = 0.0;
+  float barGravity = 0.3; // Gravitasi untuk bar utama agar jatuh dengan cepat
+
+  float peakPos = finalLeds - 1;
+  float peakVelocity = 0.0;
+  float peakGravity = 0.15; // Gravitasi untuk pixel puncak agar melayang lebih lambat
+  int peakHoldFrames = 15;   // Tahan pixel puncak selama ~600ms (15 frames * 40ms)
+
+  int greenMax = (NUM_LEDS * 25) / 55;
+  int orangeMax = (NUM_LEDS * 42) / 55;
+
+  while (barHeight > 0 || peakPos > 0) {
+    // Fisika kejatuhan bar utama
+    if (barHeight > 0) {
+      barVelocity += barGravity;
+      barHeight -= barVelocity;
+      if (barHeight < 0) barHeight = 0;
+    }
+
+    // Fisika kejatuhan pixel puncak (ditahan dulu beberapa frame)
+    if (peakHoldFrames > 0) {
+      peakHoldFrames--;
+    } else {
+      if (peakPos > 0) {
+        peakVelocity += peakGravity;
+        peakPos -= peakVelocity;
+        if (peakPos < 0) peakPos = 0;
+      }
+    }
+
+    // Gambar frame
+    pixels.clear();
+    
+    // Gambar bar utama
+    for (int i = 0; i < (int)barHeight; i++) {
+      if (i < greenMax) {
+        pixels.setPixelColor(i, pixels.Color(0, 255, 0));
+      } else if (i < orangeMax) {
+        pixels.setPixelColor(i, pixels.Color(255, 136, 0));
+      } else {
+        pixels.setPixelColor(i, pixels.Color(255, 0, 0));
+      }
+    }
+
+    // Gambar pixel puncak (jika berada di atas tinggi bar utama saat ini)
+    int roundedPeak = (int)peakPos;
+    if (roundedPeak >= (int)barHeight && roundedPeak < NUM_LEDS) {
+      // Warna pixel puncak yang dibuat sedikit lebih menyala
+      if (roundedPeak < greenMax) {
+        pixels.setPixelColor(roundedPeak, pixels.Color(0, 255, 0));
+      } else if (roundedPeak < orangeMax) {
+        pixels.setPixelColor(roundedPeak, pixels.Color(255, 120, 0));
+      } else {
+        pixels.setPixelColor(roundedPeak, pixels.Color(255, 0, 0));
+      }
+    }
+
+    pixels.show();
+    safeDelay(40); // Interval frame ~40ms (25 FPS)
+  }
+
+  // Pastikan bersih total
+  pixels.clear();
+  pixels.show();
 }
 
 /**
@@ -518,7 +589,7 @@ void calibrateNoiseFloor() {
     pixels.clear();
     for (int t = 0; t < 8; t++) {
       int idx = (calLed - t + NUM_LEDS) % NUM_LEDS;
-      int brightness = 120 - (t * 15);
+      int brightness = 255 - (t * 30);
       if (brightness < 0) brightness = 0;
       pixels.setPixelColor(idx, pixels.Color(brightness, brightness / 2, 0));
     }
@@ -537,7 +608,7 @@ void calibrateNoiseFloor() {
   // Nyalakan LED Hijau seluruhnya 3 kali untuk tanda siap digunakan
   for (int i = 0; i < 3; i++) {
     for (int l = 0; l < NUM_LEDS; l++) {
-      pixels.setPixelColor(l, pixels.Color(0, 120, 0));
+      pixels.setPixelColor(l, pixels.Color(0, 255, 0));
     }
     pixels.show();
     safeDelay(200);
@@ -563,24 +634,24 @@ void displaySimpleColor(int count, uint32_t color) {
  * Menjalankan animasi countdown visual 3-2-1 sebelum mulai merekam teriakan.
  */
 void runCountdownAnimation() {
-  // Hitung mundur 3 (Menyalakan 3/4 LED - Jingga)
+  // Hitung mundur 3 (Menyalakan seluruh 3/3 LED - Jingga)
   Serial.println(F("Countdown: 3"));
-  displaySimpleColor((NUM_LEDS * 3) / 4, pixels.Color(150, 50, 0));
+  displaySimpleColor(NUM_LEDS, pixels.Color(255, 85, 0));
   safeDelay(1000);
   
-  // Hitung mundur 2 (Menyalakan 2/4 LED - Kuning)
+  // Hitung mundur 2 (Menyalakan 2/3 LED - Kuning)
   Serial.println(F("Countdown: 2"));
-  displaySimpleColor((NUM_LEDS * 2) / 4, pixels.Color(120, 90, 0));
+  displaySimpleColor((NUM_LEDS * 2) / 3, pixels.Color(255, 191, 0));
   safeDelay(1000);
   
-  // Hitung mundur 1 (Menyalakan 1/4 LED - Merah)
+  // Hitung mundur 1 (Menyalakan 1/3 LED - Merah)
   Serial.println(F("Countdown: 1"));
-  displaySimpleColor((NUM_LEDS * 1) / 4, pixels.Color(150, 0, 0));
+  displaySimpleColor((NUM_LEDS * 1) / 3, pixels.Color(255, 0, 0));
   safeDelay(1000);
   
   // MULAI! (Menyalakan seluruh LED - Hijau)
   Serial.println(F("MULAI BERTERIAK!"));
-  displaySimpleColor(NUM_LEDS, pixels.Color(0, 150, 0));
+  displaySimpleColor(NUM_LEDS, pixels.Color(0, 255, 0));
   safeDelay(500);
   
   pixels.clear();
