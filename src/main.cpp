@@ -36,7 +36,7 @@
 
 // Konstanta Audio PWM Engine
 #define LEDC_PWM_CHANNEL    0
-#define LEDC_PWM_FREQ       250000 // Frekuensi carrier PWM 250 kHz (di atas rentang pendengaran manusia)
+#define LEDC_PWM_FREQ       64000  // Frekuensi carrier PWM 64 kHz (sangat stabil pada LEDC ESP32-C3)
 #define LEDC_PWM_RES        8      // Resolusi 8-bit (0 s.d. 255)
 
 // ==========================================
@@ -61,6 +61,18 @@ unsigned int calibratedNoiseFloor = 50;
 unsigned int micDCOffset = 2048;      // DC bias tengah default (VCC/2)
 unsigned long stateStartTime = 0;
 
+// Deklarasi Prototipe Fungsi Audio PWM & Animasi
+void stopWavTrack();
+void playWavTrack(uint8_t trackNum);
+void playBeepTone(uint16_t freqHz, uint16_t durationMs);
+void playFullCountdownAudio();
+void audioInit();
+void rampUpPWM(uint8_t targetLevel);
+void rampDownPWM(uint8_t startLevel);
+uint32_t Wheel(byte WheelPos);
+void runStartupJingleAnimation();
+void displaySimpleColorFade(int count, uint32_t color, int fadeMs);
+
 // ==========================================
 // AUDIO PWM ENGINE (INTERNAL FLASH PLAYBACK)
 // ==========================================
@@ -75,6 +87,24 @@ static volatile size_t audioPlayIndex = 0;
 static volatile bool isAudioPlaying = false;
 static esp_timer_handle_t audioTimerHandle = NULL;
 
+// Helper Anti-Pop (Soft Fade-In / Ramp-Up Tegangan PWM selama 50 ms)
+void rampUpPWM(uint8_t targetLevel) {
+  for (int lvl = 0; lvl <= (int)targetLevel; lvl++) {
+    ledcWrite(LEDC_PWM_CHANNEL, lvl);
+    delayMicroseconds(390);
+  }
+  ledcWrite(LEDC_PWM_CHANNEL, targetLevel);
+}
+
+// Helper Anti-Pop (Soft Fade-Out / Ramp-Down Tegangan PWM selama 50 ms)
+void rampDownPWM(uint8_t startLevel) {
+  for (int lvl = (int)startLevel; lvl >= 0; lvl--) {
+    ledcWrite(LEDC_PWM_CHANNEL, lvl);
+    delayMicroseconds(390);
+  }
+  ledcWrite(LEDC_PWM_CHANNEL, 0);
+}
+
 // Callback ISR Timer High-Resolution untuk Pemutaran Audio PWM
 static void IRAM_ATTR audioTimerCallback(void* arg) {
   if (!isAudioPlaying || currentAudio.pcmData == NULL) {
@@ -85,12 +115,12 @@ static void IRAM_ATTR audioTimerCallback(void* arg) {
     uint8_t sample = currentAudio.pcmData[audioPlayIndex++];
     ledcWrite(LEDC_PWM_CHANNEL, sample);
   } else {
-    // Selesai memutar file audio
+    // Selesai memutar file audio -> tahan di DC bias 128 (Zero DC Jump / Zero Pop)
     isAudioPlaying = false;
-    ledcWrite(LEDC_PWM_CHANNEL, 128); // Kembali ke DC Bias tengah (128)
     if (audioTimerHandle != NULL) {
       esp_timer_stop(audioTimerHandle);
     }
+    ledcWrite(LEDC_PWM_CHANNEL, 128);
   }
 }
 
@@ -123,12 +153,7 @@ WavAudioInfo parseWavHeader(const uint8_t* wavBytes, size_t totalLen) {
 
 void playWavTrack(uint8_t trackNum) {
   // Hentikan pemutaran audio jika sedang berjalan
-  if (isAudioPlaying) {
-    isAudioPlaying = false;
-    if (audioTimerHandle != NULL) {
-      esp_timer_stop(audioTimerHandle);
-    }
-  }
+  stopWavTrack();
 
   const uint8_t* wavData = NULL;
   size_t wavLen = 0;
@@ -170,16 +195,22 @@ void stopWavTrack() {
     if (audioTimerHandle != NULL) {
       esp_timer_stop(audioTimerHandle);
     }
-    ledcWrite(LEDC_PWM_CHANNEL, 128); // Kembali ke DC bias hening
     Serial.println(F("Audio Dihentikan."));
   }
+  // Selalu tahan di DC bias 128 (Constant DC Bias / Zero Pop)
+  ledcWrite(LEDC_PWM_CHANNEL, 128);
 }
 
 void audioInit() {
-  // Inisialisasi LEDC PWM di Pin Audio
-  ledcSetup(LEDC_PWM_CHANNEL, LEDC_PWM_FREQ, LEDC_PWM_RES);
+  // Inisialisasi LEDC PWM di Pin Audio (GPIO 1)
+  double actualFreq = ledcSetup(LEDC_PWM_CHANNEL, LEDC_PWM_FREQ, LEDC_PWM_RES);
   ledcAttachPin(AUDIO_PWM_PIN, LEDC_PWM_CHANNEL);
-  ledcWrite(LEDC_PWM_CHANNEL, 128); // Set bias hening 128
+  
+  // Ramp-up halus sekali saja saat booting dari 0V ke 1.65V (Bias Tengah 128)
+  for (int lvl = 0; lvl <= 128; lvl++) {
+    ledcWrite(LEDC_PWM_CHANNEL, lvl);
+    delayMicroseconds(400);
+  }
 
   // Buat High-Resolution Hardware Timer untuk audio playback
   const esp_timer_create_args_t timerArgs = {
@@ -189,7 +220,12 @@ void audioInit() {
     .name = "audio_timer"
   };
   esp_timer_create(&timerArgs, &audioTimerHandle);
-  Serial.println(F("Engine Audio PWM (Internal Flash) Berhasil Diinisialisasi!"));
+
+  Serial.print(F("Engine Audio PWM (Constant DC Bias 128) Diinisialisasi di GPIO "));
+  Serial.print(AUDIO_PWM_PIN);
+  Serial.print(F(" | Actual Freq: "));
+  Serial.print(actualFreq);
+  Serial.println(F(" Hz"));
 }
 
 // ==========================================
@@ -232,8 +268,8 @@ void setup() {
   // Inisialisasi Engine Audio Internal
   audioInit();
 
-  // Putar lagu startup (jingle.h -> 0003.wav)
-  playWavTrack(3);
+  // Putar lagu startup (jingle.h -> 0003.wav) dengan Animasi LED Equalizer Pelangi yang menari mengikuti Beat
+  runStartupJingleAnimation();
 
   // Membaca Rekor Tertinggi dari EEPROM
   unsigned int savedScore;
@@ -267,20 +303,8 @@ void loop() {
       EEPROM.put(EEPROM_ADDR_SCORE, highScore);
       EEPROM.commit();
       
-      // Putar lagu 0003.wav saat reset
-      playWavTrack(3);
-      
-      // Kedipkan LED warna merah 3 kali sebagai indikasi reset sukses
-      for (int i = 0; i < 3; i++) {
-        for (int l = 0; l < NUM_LEDS; l++) {
-          pixels.setPixelColor(l, pixels.Color(255, 0, 0));
-        }
-        pixels.show();
-        safeDelay(200);
-        pixels.clear();
-        pixels.show();
-        safeDelay(100);
-      }
+      // Putar lagu jingle.h (0003.wav) dengan Animasi Beat Equalizer saat Reset
+      runStartupJingleAnimation();
       
       Serial.print(F("Rekor direset ke: "));
       Serial.println(highScore);
@@ -571,6 +595,50 @@ void runCelebrationAnimation(unsigned long durationMs) {
   pixels.show();
 }
 
+void runStartupJingleAnimation() {
+  playWavTrack(3); // Putar lagu startup / reset (jingle.h -> 0003.wav)
+
+  uint16_t colorOffset = 0;
+  float smoothAmp = 0.0f;
+
+  // Visualizer Equalizer Pelangi yang bergerak real-time mengikuti beat lagu
+  while (isAudioPlaying) {
+    size_t idx = audioPlayIndex;
+    uint8_t sample = (idx < currentAudio.pcmSize && currentAudio.pcmData != NULL) ? currentAudio.pcmData[idx] : 128;
+    
+    // Hitung amplitudo real-time (selisih dari bias 128)
+    int amplitude = abs((int)sample - 128);
+    
+    // Smooth moving average agar gerakan bar LED terlihat elastis & empuk
+    smoothAmp = (smoothAmp * 0.75f) + ((float)amplitude * 0.25f);
+    
+    // Pemetaan amplitudo ke jumlah LED yang menyala
+    int numLedsLit = map((int)(smoothAmp * 3.5f), 0, 100, 2, NUM_LEDS);
+    numLedsLit = constrain(numLedsLit, 2, NUM_LEDS);
+
+    pixels.clear();
+    for (int i = 0; i < NUM_LEDS; i++) {
+      if (i < numLedsLit) {
+        uint32_t color = Wheel(((i * 256 / NUM_LEDS) + colorOffset) & 255);
+        pixels.setPixelColor(i, color);
+      }
+    }
+    pixels.show();
+    
+    colorOffset += 5;
+    delay(20);
+
+    // Bisa diinterupsi jika tombol Start ditekan
+    if (digitalRead(START_BUTTON_PIN) == LOW) {
+      stopWavTrack();
+      break;
+    }
+  }
+
+  pixels.clear();
+  pixels.show();
+}
+
 uint32_t Wheel(byte WheelPos) {
   WheelPos = 255 - WheelPos;
   if (WheelPos < 85) {
@@ -621,36 +689,51 @@ void calibrateNoiseFloor() {
   calibratedNoiseFloor = maxAmbient + 30;
   if (calibratedNoiseFloor < 40) calibratedNoiseFloor = 40;
 
-  Serial.print(F("Kalibrasi Selesai. Noise Floor diset ke: "));
-  Serial.println(calibratedNoiseFloor);
-
-  for (int i = 0; i < 3; i++) {
-    for (int l = 0; l < NUM_LEDS; l++) {
-      pixels.setPixelColor(l, pixels.Color(0, 255, 0));
-    }
-    pixels.show();
-    safeDelay(200);
-    pixels.clear();
-    pixels.show();
-    safeDelay(100);
-  }
+  pixels.clear();
+  pixels.show();
 }
 
 void playBeepTone(uint16_t freqHz, uint16_t durationMs) {
   stopWavTrack();
 
-  // Ubah frekuensi PWM ke frekuensi nada Beep yang diinginkan
-  ledcSetup(LEDC_PWM_CHANNEL, freqHz, LEDC_PWM_RES);
-  ledcWrite(LEDC_PWM_CHANNEL, 128); // Gelombang kotak 50% duty cycle
+  // Sintesis Gelombang Sinus Murni dengan Amplop S-Curve (Raised Cosine / Hann Fade) - Zero Click/Pop
+  uint32_t sampleRate = 22050;
+  size_t numSamples = (sampleRate * (size_t)durationMs) / 1000;
+  
+  static uint8_t synthBuffer[4410]; // Maksimal buffer 200ms pada 22.05kHz
+  if (numSamples > 4410) numSamples = 4410;
 
-  delay(durationMs);
+  float omega = 2.0f * PI * (float)freqHz / (float)sampleRate;
+  float amplitude = 28.0f; // Amplitudo volume empuk & sangat jernih
+  size_t fadeLen = (size_t)(sampleRate * 0.040f); // Amplop S-Curve Fade 40ms (882 sampel)
 
-  // Matikan nada Beep
-  ledcWrite(LEDC_PWM_CHANNEL, 0);
+  for (size_t i = 0; i < numSamples; i++) {
+    float env = 1.0f;
+    if (i < fadeLen) {
+      // S-Curve (Raised Cosine) smooth fade-in tanpa sudut/kink
+      env = 0.5f * (1.0f - cosf(PI * (float)i / (float)fadeLen));
+    } else if (i > numSamples - fadeLen) {
+      // S-Curve (Raised Cosine) smooth fade-out tanpa sudut/kink
+      size_t rem = numSamples - 1 - i;
+      env = 0.5f * (1.0f - cosf(PI * (float)rem / (float)fadeLen));
+    }
+    
+    float val = 128.0f + (amplitude * env * sinf(omega * (float)i));
+    synthBuffer[i] = (uint8_t)constrain(val, 0.0f, 255.0f);
+  }
 
-  // Kembalikan konfigurasi PWM ke frekuensi carrier 250kHz untuk pemutaran audio WAV
-  ledcSetup(LEDC_PWM_CHANNEL, LEDC_PWM_FREQ, LEDC_PWM_RES);
-  ledcWrite(LEDC_PWM_CHANNEL, 128);
+  currentAudio.pcmData = synthBuffer;
+  currentAudio.pcmSize = numSamples;
+  currentAudio.sampleRate = sampleRate;
+
+  audioPlayIndex = 0;
+  isAudioPlaying = true;
+
+  uint64_t periodUs = 1000000ULL / sampleRate;
+  esp_timer_start_periodic(audioTimerHandle, periodUs);
+
+  // Tunggu hingga nada selesai dimainkan
+  safeDelay(durationMs);
 }
 
 void displaySimpleColor(int count, uint32_t color) {
@@ -661,31 +744,118 @@ void displaySimpleColor(int count, uint32_t color) {
   pixels.show();
 }
 
+void displaySimpleColorFade(int count, uint32_t color, int fadeMs) {
+  uint8_t targetR = (color >> 16) & 0xFF;
+  uint8_t targetG = (color >> 8) & 0xFF;
+  uint8_t targetB = color & 0xFF;
+
+  int steps = 12;
+  int stepDelay = fadeMs / steps;
+  if (stepDelay < 1) stepDelay = 1;
+
+  // Soft Fade-In Kecerahan LED (Anti-Power Spike / Kemiringan Arus Halus)
+  for (int s = 1; s <= steps; s++) {
+    uint8_t curR = (targetR * s) / steps;
+    uint8_t curG = (targetG * s) / steps;
+    uint8_t curB = (targetB * s) / steps;
+
+    pixels.clear();
+    for (int i = 0; i < count; i++) {
+      pixels.setPixelColor(i, pixels.Color(curR, curG, curB));
+    }
+    pixels.show();
+    delay(stepDelay);
+  }
+}
+
+void playFullCountdownAudio() {
+  stopWavTrack();
+
+  uint32_t sampleRate = 22050;
+  size_t totalSamples = (sampleRate * 3500) / 1000; // 3.5 detik = 77175 sampel
+  
+  static uint8_t countdownBuffer[77175];
+
+  // Isi seluruh buffer dengan 128 (Constant 1.65V DC Bias Silence)
+  memset(countdownBuffer, 128, totalSamples);
+
+  // Helper lambda untuk menyisipkan Beep murni S-Curve ke offset waktu tertentu
+  auto addBeepToBuffer = [&](uint32_t startMs, uint16_t freqHz, uint16_t durationMs) {
+    size_t startIdx = (sampleRate * startMs) / 1000;
+    size_t numSamples = (sampleRate * (size_t)durationMs) / 1000;
+    float omega = 2.0f * PI * (float)freqHz / (float)sampleRate;
+    float amplitude = 28.0f;
+    size_t fadeLen = (size_t)(sampleRate * 0.040f); // Amplop S-Curve Fade 40ms
+
+    for (size_t i = 0; i < numSamples; i++) {
+      if (startIdx + i >= totalSamples) break;
+      float env = 1.0f;
+      if (i < fadeLen) {
+        env = 0.5f * (1.0f - cosf(PI * (float)i / (float)fadeLen));
+      } else if (i > numSamples - fadeLen) {
+        size_t rem = numSamples - 1 - i;
+        env = 0.5f * (1.0f - cosf(PI * (float)rem / (float)fadeLen));
+      }
+      float val = 128.0f + (amplitude * env * sinf(omega * (float)i));
+      countdownBuffer[startIdx + i] = (uint8_t)constrain(val, 0.0f, 255.0f);
+    }
+  };
+
+  // Sintesis 3x Beep Rendah (1000Hz) & 1x Beep Tinggi (2000Hz) dalam 1 Stream Kontinyu
+  addBeepToBuffer(0,    1000, 150); // Beep 3 (0.0s)
+  addBeepToBuffer(1000, 1000, 150); // Beep 2 (1.0s)
+  addBeepToBuffer(2000, 1000, 150); // Beep 1 (2.0s)
+  addBeepToBuffer(3000, 2000, 400); // Beep MULAI! (3.0s)
+
+  currentAudio.pcmData = countdownBuffer;
+  currentAudio.pcmSize = totalSamples;
+  currentAudio.sampleRate = sampleRate;
+
+  audioPlayIndex = 0;
+  isAudioPlaying = true;
+
+  uint64_t periodUs = 1000000ULL / sampleRate;
+  esp_timer_start_periodic(audioTimerHandle, periodUs);
+}
+
 void runCountdownAnimation() {
-  // Hitung mundur 3 (LED Jingga + Beep 1000Hz)
-  Serial.println(F("Countdown: 3"));
-  displaySimpleColor(NUM_LEDS, pixels.Color(255, 85, 0));
-  playBeepTone(1000, 150);
-  safeDelay(850);
+  Serial.println(F("Memulai Countdown 3-2-1-MULAI (1 Stream Kontinyu 3.5 Detik)..."));
   
-  // Hitung mundur 2 (LED Kuning + Beep 1000Hz)
-  Serial.println(F("Countdown: 2"));
-  displaySimpleColor((NUM_LEDS * 2) / 3, pixels.Color(255, 191, 0));
-  playBeepTone(1000, 150);
-  safeDelay(850);
-  
-  // Hitung mundur 1 (LED Merah + Beep 1000Hz)
-  Serial.println(F("Countdown: 1"));
-  displaySimpleColor((NUM_LEDS * 1) / 3, pixels.Color(255, 0, 0));
-  playBeepTone(1000, 150);
-  safeDelay(850);
-  
-  // MULAI! (LED Hijau + High Pitch Beep 2000Hz)
-  Serial.println(F("MULAI BERTERIAK!"));
-  displaySimpleColor(NUM_LEDS, pixels.Color(0, 255, 0));
-  playBeepTone(2000, 400);
-  safeDelay(100);
-  
+  // Putar 1 stream audio kontinyu 3.5 detik tanpa jeda timer hardware
+  playFullCountdownAudio();
+
+  unsigned long startAnim = millis();
+  int lastPhase = -1;
+
+  while (isAudioPlaying && (millis() - startAnim < 3600)) {
+    unsigned long elapsed = millis() - startAnim;
+
+    int currentPhase = 0;
+    if (elapsed < 1000) currentPhase = 3;       // 0.0s - 1.0s: Hitung Mundur 3
+    else if (elapsed < 2000) currentPhase = 2;  // 1.0s - 2.0s: Hitung Mundur 2
+    else if (elapsed < 3000) currentPhase = 1;  // 2.0s - 3.0s: Hitung Mundur 1
+    else currentPhase = 0;                      // 3.0s - 3.5s: MULAI BERTERIAK!
+
+    if (currentPhase != lastPhase) {
+      lastPhase = currentPhase;
+      if (currentPhase == 3) {
+        Serial.println(F("Countdown: 3"));
+        displaySimpleColorFade(NUM_LEDS, pixels.Color(255, 85, 0), 40);
+      } else if (currentPhase == 2) {
+        Serial.println(F("Countdown: 2"));
+        displaySimpleColorFade((NUM_LEDS * 2) / 3, pixels.Color(255, 191, 0), 40);
+      } else if (currentPhase == 1) {
+        Serial.println(F("Countdown: 1"));
+        displaySimpleColorFade((NUM_LEDS * 1) / 3, pixels.Color(255, 0, 0), 40);
+      } else {
+        Serial.println(F("MULAI BERTERIAK!"));
+        displaySimpleColorFade(NUM_LEDS, pixels.Color(0, 255, 0), 40);
+      }
+    }
+
+    delay(20);
+  }
+
   pixels.clear();
   pixels.show();
 }

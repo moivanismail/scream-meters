@@ -16,6 +16,7 @@ Tabel berikut memandu penghubungan pin antar modul untuk kedua jenis mikrokontro
 | **WS2812B NeoPixel**| DIN | **GPIO 10** | **GPIO 27** | Sinyal Data RGB LED Strip |
 | | VCC | **5V / 3V3** | **5V / 3V3** | Daya Utama LED Strip |
 | | GND | **GND** | **GND** | Ground Bersama |
+| **Elco 470µF (Buffer LED)** | **+** / **-** | **5V** / **GND** | **5V** / **GND** | **Penting**: Menyerap lonjakan arus LED (Pencegah Pop Audio) |
 | **Audio Out (AUX)** | Signal Out | **GPIO 1** (via Filter RC) | **GPIO 25** (via Filter RC) | Ke Pin Tip/Signal Speaker Aktif |
 | | Ground | **GND** | **GND** | Ke Pin Sleeve/Ground Speaker |
 | **Tombol Start** | PIN | **GPIO 4** | **GPIO 26** | Terhubung ke GND (`INPUT_PULLUP`) |
