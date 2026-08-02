@@ -1,6 +1,6 @@
-# 🎙️ Panduan Lengkap Proyek Scream Meter (ESP32-C3 Super Mini)
+# 🎙️ Panduan Lengkap Proyek Scream Meter (ESP32-C3 Super Mini + PWM Audio)
 
-Panduan ini berisi semua instruksi yang diperlukan untuk membangun, merakit, dan mengonfigurasi proyek **Scream Meter** (Game Teriak) menggunakan mikrokontroler **ESP32-C3 Super Mini**, sensor suara **MAX4466**, **DFPlayer Mini**, dan strip **NeoPixel WS2812B**.
+Panduan ini berisi semua instruksi yang diperlukan untuk membangun, merakit, dan mengonfigurasi proyek **Scream Meter** (Game Teriak) menggunakan mikrokontroler **ESP32-C3 Super Mini**, sensor suara **MAX4466**, strip **NeoPixel WS2812B**, dan **Internal Audio PWM Engine** (tanpa modul DFPlayer Mini / SD Card).
 
 ---
 
@@ -9,34 +9,36 @@ Panduan ini berisi semua instruksi yang diperlukan untuk membangun, merakit, dan
 1. **Mikrokontroler**: ESP32-C3 Super Mini Board
 2. **Sensor Suara**: MAX4466 Electret Microphone Preamplifier
 3. **LED Bar**: WS2812B NeoPixel RGB LED Strip (62 LED)
-4. **Modul Suara**: DFPlayer Mini MP3 Player + Speaker (4Ω 3W)
+4. **Speaker**: Speaker Aktif Eksternal (dicolok ke Jack AUX 3.5mm)
 5. **Tombol**: 2x Push Button (Start & Reset)
-6. **Resistor**: 1x Resistor 1kΩ (Wajib dipasang seri pada jalur RX DFPlayer)
+6. **Komponen Filter Audio Pasif**:
+   * 1x Resistor 1kΩ
+   * 1x Kapasitor Keramik 10nF (atau 100nF)
+   * 1x Kapasitor Elco 10uF (Kapasitor DC Blocking)
 7. **Kabel Jumper** & Breadboard secukupnya.
 
 ---
 
 ## 🔌 Skema Perkabelan (Wiring Diagram ESP32-C3 Super Mini)
 
-Untuk menghindari pin JTAG debug, jalur memori flash internal, dan pin *boot strapping* (yang dapat menyebabkan ESP32-C3 gagal boot), gunakan pemetaan pin yang aman di bawah ini:
-
 | Komponen | Pin Komponen | Pin ESP32-C3 Super Mini | Deskripsi / Fungsi |
 | :--- | :--- | :--- | :--- |
-| **MAX4466 Mic** | VCC | **3V3** | Daya 3.3V (Sangat disarankan untuk stabilitas analog) |
+| **MAX4466 Mic** | VCC | **3V3** | Daya 3.3V (Disarankan untuk stabilitas ADC) |
 | | GND | **GND** | Ground Bersama |
-| | OUT | **GPIO 0** | Input Analog ADC1_CH0 (Channel ADC1 presisi tinggi) |
+| | OUT | **GPIO 0** | Input Analog ADC1_CH0 |
 | **WS2812B LED** | VCC | **5V / 3V3** | Daya Utama LED Strip |
 | | GND | **GND** | Ground Bersama |
-| | DIN (Data In) | **GPIO 10** | Jalur sinyal data LED (Aman dari strapping pin) |
+| | DIN (Data In) | **GPIO 10** | Jalur sinyal data LED |
+| **Audio Out (AUX)** | Signal Out | **GPIO 1** | Ke Pin Tip/Signal AUX (via Filter RC Pasif) |
+| | Ground | **GND** | Ke Pin Sleeve/Ground AUX Speaker |
 | **Tombol Start** | PIN | **GPIO 4** | Dihubungkan ke GND saat ditekan (`INPUT_PULLUP`) |
 | **Tombol Reset** | PIN | **GPIO 5** | Dihubungkan ke GND saat ditekan (`INPUT_PULLUP`) |
-| **DFPlayer Mini**| VCC | **5V** | Membutuhkan tegangan 5V stabil untuk amplifier speaker |
-| | GND | **GND** | Ground Bersama |
-| | TX | **GPIO 7** | Masuk ke UART1 RX ESP32-C3 |
-| | RX | **GPIO 6** | Dari UART1 TX ESP32-C3 (Wajib dipasang resistor 1kΩ seri) |
 
-> [!CAUTION]
-> **Pasang Resistor 1kΩ secara seri** pada kabel dari pin **GPIO 6 (TX ESP32-C3)** menuju pin **RX DFPlayer Mini**. Siasat ini sangat krusial untuk meredam kebisingan arus balik digital (*serial noise*) dan melindungi port input DFPlayer Mini (yang beroperasi pada tegangan logika 3.3V sensitif).
+> [!TIP]
+> **Rangkaian Filter Pasif RC Audio (GPIO 1):**
+> * Hubungkan **GPIO 1** -> **Resistor 1kΩ** -> titik tengah.
+> * Dari titik tengah pasang **Kapasitor 10nF** ke **GND**.
+> * Dari titik tengah pasang **Kapasitor 10uF** (kutub + ke titik tengah, kutub - ke Pin Tip/Signal Colokan AUX Speaker).
 
 ---
 

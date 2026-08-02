@@ -1,6 +1,12 @@
 #include <Arduino.h>
 #include <Adafruit_NeoPixel.h>
 #include <EEPROM.h>
+#include "esp_timer.h"
+
+// Include file audio WAV C-Array yang dihasilkan oleh xxd
+#include "winning.h"
+#include "losing.h"
+#include "jingle.h"
 
 // ==========================================
 // KONFIGURASI PIN & KONSTANTA
@@ -8,21 +14,17 @@
 #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(ARDUINO_ESP32C3_DEV) || defined(ESP32C3)
   // Pinout ESP32-C3 Super Mini
   #define MIC_PIN             0     // Pin analog sensor Mic MAX4466 (GPIO0 / ADC1_CH0)
-  #define DFPLAYER_RX         7     // Pin GPIO7 terhubung ke TX DFPlayer Mini (UART1 RX)
-  #define DFPLAYER_TX         6     // Pin GPIO6 terhubung ke RX DFPlayer Mini (UART1 TX - gunakan resistor 1kΩ seri)
+  #define AUDIO_PWM_PIN       1     // Pin Output Audio PWM ke Filter RCPasif & Speaker Aktif (GPIO1)
   #define NEOPIXEL_PIN        10    // Pin GPIO10 terhubung ke Data Input WS2812B
   #define RESET_BUTTON_PIN    5     // Pin GPIO5 terhubung ke tombol reset high score (ke GND)
   #define START_BUTTON_PIN    4     // Pin GPIO4 terhubung ke tombol start game (ke GND)
-  #define dfSerial            Serial1
 #else
   // Pinout ESP32 Classic (WROOM-32)
   #define MIC_PIN             34    // Pin analog untuk output sensor Mic MAX4466 (GPIO34 / ADC1_CH6)
-  #define DFPLAYER_RX         16    // Pin GPIO16 terhubung ke TX DFPlayer Mini (UART2 RX)
-  #define DFPLAYER_TX         17    // Pin GPIO17 terhubung ke RX DFPlayer Mini (UART2 TX - gunakan resistor 1kΩ seri)
+  #define AUDIO_PWM_PIN       25    // Pin Output Audio PWM (GPIO25)
   #define NEOPIXEL_PIN        27    // Pin GPIO27 terhubung ke Data Input WS2812B
   #define RESET_BUTTON_PIN    25    // Pin GPIO25 terhubung ke tombol reset high score (ke GND)
   #define START_BUTTON_PIN    26    // Pin GPIO26 terhubung ke tombol start game (ke GND)
-  #define dfSerial            Serial2
 #endif
 
 #define NUM_LEDS            62    // Jumlah total LED WS2812B
@@ -32,20 +34,13 @@
 #define SCREAM_DURATION_MS  5000  // Durasi perekaman teriakan dalam milidetik (5 detik)
 #define SAMPLING_WINDOW_MS  50    // Window pembacaan sampel mic untuk mengukur amplitudo
 
-// Konstanta Command & Status DFPlayer
-#define DF_CMD_PLAY_TRACK     0x12    // Menggunakan command 0x12 untuk memutar dari folder /MP3 berdasarkan nama file
-#define DF_CMD_SET_VOLUME     0x06
-#define DF_CMD_PAUSE          0x0E
-#define DF_CMD_STOP           0x16
-#define DF_CMD_QUERY_STATUS   0x42
-#define DF_CMD_QUERY_ONLINE   0x3F
-
-#define DF_EVT_PLAY_FINISHED  0x3D
-#define DF_EVT_ERROR          0x40
-#define DF_EVT_STATUS_RESP    0x42
+// Konstanta Audio PWM Engine
+#define LEDC_PWM_CHANNEL    0
+#define LEDC_PWM_FREQ       250000 // Frekuensi carrier PWM 250 kHz (di atas rentang pendengaran manusia)
+#define LEDC_PWM_RES        8      // Resolusi 8-bit (0 s.d. 255)
 
 // ==========================================
-// DEFINISI STATE
+// DEFINISI STATE PERMAINAN
 // ==========================================
 enum GameState {
   STATE_IDLE,         // Standby, menunggu teriakan melampaui noise floor
@@ -55,22 +50,147 @@ enum GameState {
 };
 
 // ==========================================
-// INSTANSIALISASI OBJEK
+// INSTANSIALISASI OBJEK & VARIABEL GLOBAL
 // ==========================================
 Adafruit_NeoPixel pixels(NUM_LEDS, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
-// ==========================================
-// VARIABEL GLOBAL
-// ==========================================
 GameState currentState = STATE_IDLE;
 unsigned int highScore = DEFAULT_HIGH_SCORE;
 unsigned int currentPeak = 0;
 unsigned int calibratedNoiseFloor = 50;
 unsigned int micDCOffset = 2048;      // DC bias tengah default (VCC/2)
 unsigned long stateStartTime = 0;
-bool dfPlayerOnline = false;
-bool dfplayerPlaying = false;
-unsigned long dfplayerPlayStartTime = 0;
+
+// ==========================================
+// AUDIO PWM ENGINE (INTERNAL FLASH PLAYBACK)
+// ==========================================
+struct WavAudioInfo {
+  const uint8_t* pcmData;
+  size_t pcmSize;
+  uint32_t sampleRate;
+};
+
+static WavAudioInfo currentAudio = { NULL, 0, 22050 };
+static volatile size_t audioPlayIndex = 0;
+static volatile bool isAudioPlaying = false;
+static esp_timer_handle_t audioTimerHandle = NULL;
+
+// Callback ISR Timer High-Resolution untuk Pemutaran Audio PWM
+static void IRAM_ATTR audioTimerCallback(void* arg) {
+  if (!isAudioPlaying || currentAudio.pcmData == NULL) {
+    return;
+  }
+  
+  if (audioPlayIndex < currentAudio.pcmSize) {
+    uint8_t sample = currentAudio.pcmData[audioPlayIndex++];
+    ledcWrite(LEDC_PWM_CHANNEL, sample);
+  } else {
+    // Selesai memutar file audio
+    isAudioPlaying = false;
+    ledcWrite(LEDC_PWM_CHANNEL, 128); // Kembali ke DC Bias tengah (128)
+    if (audioTimerHandle != NULL) {
+      esp_timer_stop(audioTimerHandle);
+    }
+  }
+}
+
+// Helper untuk membaca header WAV dan menemukan offset chunk raw PCM "data"
+WavAudioInfo parseWavHeader(const uint8_t* wavBytes, size_t totalLen) {
+  WavAudioInfo info = { NULL, 0, 22050 };
+  if (totalLen < 44) return info;
+
+  // Cari chunk "fmt " untuk ekstrak sample rate
+  uint32_t sRate = 22050;
+  for (size_t i = 0; i < totalLen - 16; i++) {
+    if (wavBytes[i] == 'f' && wavBytes[i+1] == 'm' && wavBytes[i+2] == 't' && wavBytes[i+3] == ' ') {
+      sRate = wavBytes[i + 10] | (wavBytes[i + 11] << 8) | (wavBytes[i + 12] << 16) | (wavBytes[i + 13] << 24);
+      break;
+    }
+  }
+  info.sampleRate = (sRate > 0) ? sRate : 22050;
+
+  // Cari chunk "data"
+  for (size_t i = 0; i < totalLen - 8; i++) {
+    if (wavBytes[i] == 'd' && wavBytes[i+1] == 'a' && wavBytes[i+2] == 't' && wavBytes[i+3] == 'a') {
+      uint32_t dataLen = wavBytes[i+4] | (wavBytes[i+5] << 8) | (wavBytes[i+6] << 16) | (wavBytes[i+7] << 24);
+      info.pcmData = wavBytes + i + 8;
+      info.pcmSize = (dataLen <= totalLen - i - 8) ? dataLen : (totalLen - i - 8);
+      return info;
+    }
+  }
+  return info;
+}
+
+void playWavTrack(uint8_t trackNum) {
+  // Hentikan pemutaran audio jika sedang berjalan
+  if (isAudioPlaying) {
+    isAudioPlaying = false;
+    if (audioTimerHandle != NULL) {
+      esp_timer_stop(audioTimerHandle);
+    }
+  }
+
+  const uint8_t* wavData = NULL;
+  size_t wavLen = 0;
+
+  if (trackNum == 1) { // Trek Perayaan Rekor (winning.h -> 0001.wav)
+    wavData = __0001_wav;
+    wavLen = __0001_wav_len;
+  } else if (trackNum == 2) { // Trek Gagal (losing.h -> 0002.wav)
+    wavData = __0002_wav;
+    wavLen = __0002_wav_len;
+  } else if (trackNum == 3) { // Trek Startup / Jingle (jingle.h -> 0003.wav)
+    wavData = __0003_wav;
+    wavLen = __0003_wav_len;
+  }
+
+  if (wavData == NULL || wavLen == 0) return;
+
+  currentAudio = parseWavHeader(wavData, wavLen);
+  if (currentAudio.pcmData == NULL || currentAudio.pcmSize == 0) return;
+
+  audioPlayIndex = 0;
+  isAudioPlaying = true;
+
+  // Atur interval pemicuan timer mikrodetik berdasarkan Sample Rate audio
+  uint64_t periodUs = 1000000ULL / currentAudio.sampleRate;
+  esp_timer_start_periodic(audioTimerHandle, periodUs);
+  
+  Serial.print(F("Memutar Audio Track "));
+  Serial.print(trackNum);
+  Serial.print(F(" | Sample Rate: "));
+  Serial.print(currentAudio.sampleRate);
+  Serial.print(F(" Hz | Samples: "));
+  Serial.println(currentAudio.pcmSize);
+}
+
+void stopWavTrack() {
+  if (isAudioPlaying) {
+    isAudioPlaying = false;
+    if (audioTimerHandle != NULL) {
+      esp_timer_stop(audioTimerHandle);
+    }
+    ledcWrite(LEDC_PWM_CHANNEL, 128); // Kembali ke DC bias hening
+    Serial.println(F("Audio Dihentikan."));
+  }
+}
+
+void audioInit() {
+  // Inisialisasi LEDC PWM di Pin Audio
+  ledcSetup(LEDC_PWM_CHANNEL, LEDC_PWM_FREQ, LEDC_PWM_RES);
+  ledcAttachPin(AUDIO_PWM_PIN, LEDC_PWM_CHANNEL);
+  ledcWrite(LEDC_PWM_CHANNEL, 128); // Set bias hening 128
+
+  // Buat High-Resolution Hardware Timer untuk audio playback
+  const esp_timer_create_args_t timerArgs = {
+    .callback = &audioTimerCallback,
+    .arg = NULL,
+    .dispatch_method = ESP_TIMER_TASK,
+    .name = "audio_timer"
+  };
+  esp_timer_create(&timerArgs, &audioTimerHandle);
+  Serial.println(F("Engine Audio PWM (Internal Flash) Berhasil Diinisialisasi!"));
+}
 
 // ==========================================
 // DEKLARASI FUNGSI HELPER
@@ -83,13 +203,6 @@ uint32_t Wheel(byte WheelPos);
 void calibrateNoiseFloor();
 void runCountdownAnimation();
 void displaySimpleColor(int count, uint32_t color);
-
-// Fungsi Driver DFPlayer Custom
-void sendDFPlayerCmd(uint8_t cmd, uint16_t parameter);
-void setDFPlayerVolume(uint8_t volume);
-void playDFPlayerTrack(uint16_t track);
-void stopDFPlayer();
-void parseDFPlayer();
 void safeDelay(unsigned long ms);
 
 // ==========================================
@@ -100,7 +213,7 @@ void setup() {
   while (!Serial) {
     ; // Tunggu serial monitor terhubung
   }
-  Serial.println(F("--- Scream Meter Game Initializing ---"));
+  Serial.println(F("--- Scream Meter Game Initializing (Internal Audio PWM) ---"));
 
   // Inisialisasi EEPROM Flash untuk ESP32
   EEPROM.begin(32);
@@ -116,43 +229,11 @@ void setup() {
   pixels.clear();
   pixels.show();
 
-  // Inisialisasi DFPlayer Mini (menggunakan Hardware Serial1)
-  dfSerial.begin(9600, SERIAL_8N1, DFPLAYER_RX, DFPLAYER_TX);
-  Serial.println(F("Menghubungkan ke DFPlayer Mini..."));
-  
-  // Beri waktu 2 detik sejak Arduino boot agar DFPlayer selesai booting fisik (Siasat Booting Time Lambat)
-  delay(2000); 
-  
-  // Bersihkan buffer serial
-  while (dfSerial.available()) {
-    dfSerial.read();
-  }
-  
-  // Kirim status query untuk mendeteksi DFPlayer
-  sendDFPlayerCmd(DF_CMD_QUERY_STATUS, 0);
-  
-  // Tunggu respon (maksimal 500 ms)
-  unsigned long startWait = millis();
-  while (millis() - startWait < 500) {
-    parseDFPlayer();
-    if (dfPlayerOnline) {
-      break;
-    }
-    delay(10);
-  }
-  
-  if (!dfPlayerOnline) {
-    Serial.println(F("DFPlayer Mini tidak merespon/terdeteksi. Silakan periksa kabel!"));
-  } else {
-    Serial.println(F("DFPlayer Mini terdeteksi & online!"));
-    
-    // Set volume awal (dibatasi maks 30)
-    setDFPlayerVolume(15);
-    delay(100);
-    
-    Serial.println(F("Memutar lagu startup 0003.mp3 dari folder /MP3..."));
-    playDFPlayerTrack(3);
-  }
+  // Inisialisasi Engine Audio Internal
+  audioInit();
+
+  // Putar lagu startup (jingle.h -> 0003.wav)
+  playWavTrack(3);
 
   // Membaca Rekor Tertinggi dari EEPROM
   unsigned int savedScore;
@@ -177,24 +258,6 @@ void setup() {
 // LOOP UTAMA
 // ==========================================
 void loop() {
-  // Cek pesan detail/error dari DFPlayer Mini secara non-blocking
-  parseDFPlayer();
-
-  // Jalankan periodic polling & safety timeout check
-  if (dfPlayerOnline) {
-    static unsigned long lastQueryTime = 0;
-    if (dfplayerPlaying && (millis() - lastQueryTime >= 1500)) {
-      lastQueryTime = millis();
-      sendDFPlayerCmd(DF_CMD_QUERY_STATUS, 0);
-    }
-    
-    // Safety timeout check (300 detik)
-    if (dfplayerPlaying && (millis() - dfplayerPlayStartTime >= 300000UL)) {
-      Serial.println(F("DFPlayer Safety Timeout tercapai! Memaksa stop..."));
-      stopDFPlayer();
-    }
-  }
-
   // Cek jika tombol reset ditekan
   if (digitalRead(RESET_BUTTON_PIN) == LOW) {
     safeDelay(50); // Debouncing
@@ -204,10 +267,8 @@ void loop() {
       EEPROM.put(EEPROM_ADDR_SCORE, highScore);
       EEPROM.commit();
       
-      // Putar lagu 0003.mp3 saat reset
-      if (dfPlayerOnline) {
-        playDFPlayerTrack(3);
-      }
+      // Putar lagu 0003.wav saat reset
+      playWavTrack(3);
       
       // Kedipkan LED warna merah 3 kali sebagai indikasi reset sukses
       for (int i = 0; i < 3; i++) {
@@ -235,11 +296,8 @@ void loop() {
         if (digitalRead(START_BUTTON_PIN) == LOW) {
           Serial.println(F("Tombol Start Ditekan. Memulai countdown..."));
           
-          // Hentikan lagu jika DFPlayer sedang memutar musik
-          if (dfPlayerOnline) {
-            stopDFPlayer();
-            delay(100); // Beri jeda kecil agar perintah stop diproses penuh oleh DFPlayer
-          }
+          // Hentikan audio jika sedang memutar musik
+          stopWavTrack();
           
           runCountdownAnimation();
           currentState = STATE_SCREAMING;
@@ -249,7 +307,7 @@ void loop() {
         }
       }
 
-      // Jalankan pembaruan LED hanya setiap 30ms agar tidak mengganggu komunikasi serial
+      // Jalankan pembaruan LED hanya setiap 30ms agar tidak mengganggu sistem
       static unsigned long lastPixelUpdate = 0;
       if (millis() - lastPixelUpdate >= 30) {
         lastPixelUpdate = millis();
@@ -257,10 +315,10 @@ void loop() {
         // Buat indikator letak rekor tertinggi berdenyut (breathing effect) warna biru
         unsigned long now = millis();
         float breath = (exp(sin(now / 1000.0 * PI)) - 0.36787944) * 108.0;
-        uint8_t brightness = map(breath, 0, 255, 30, 180); // Skala nyaman namun terlihat di luar ruangan
+        uint8_t brightness = map(breath, 0, 255, 30, 180);
 
         pixels.clear();
-        // Petakan letak rekor tertinggi ke index LED (Quadratic Mapping agar selaras dengan game)
+        // Petakan letak rekor tertinggi ke index LED (Quadratic Mapping)
         float recordRatio = 0.0;
         if (highScore > calibratedNoiseFloor && MAX_SCREAM_VAL > calibratedNoiseFloor) {
           recordRatio = (float)(highScore - calibratedNoiseFloor) / (MAX_SCREAM_VAL - calibratedNoiseFloor);
@@ -329,10 +387,8 @@ void loop() {
         // Melampaui rekor tertinggi!
         currentState = STATE_CELEBRATION;
       } else {
-        // Gagal melampaui rekor, putar musik/efek suara gagal 0002.mp3 dari folder /MP3
-        if (dfPlayerOnline) {
-          playDFPlayerTrack(2); // Memutar file indeks ke-2 (0002.mp3)
-        }
+        // Gagal melampaui rekor, putar musik gagal (losing.h -> 0002.wav)
+        playWavTrack(2);
         
         // Jalankan animasi biasa
         runNormalResultAnimation(finalLeds);
@@ -354,15 +410,11 @@ void loop() {
       EEPROM.put(EEPROM_ADDR_SCORE, highScore);
       EEPROM.commit();
 
-      // Play lagu perayaan di DFPlayer (File indeks ke-1)
-      if (dfPlayerOnline) {
-        playDFPlayerTrack(1); // Memutar file indeks ke-1
-      }
+      // Play lagu perayaan (winning.h -> 0001.wav)
+      playWavTrack(1);
 
       // Jalankan animasi perayaan pelangi (rainbow chase) selama 6 detik
       runCelebrationAnimation(6000);
-
-
 
       // Beri jeda kecil lalu kembali ke Standby
       safeDelay(500);
@@ -377,10 +429,6 @@ void loop() {
 // DEFINISI FUNGSI HELPER
 // ==========================================
 
-/**
- * Membaca nilai puncak-ke-puncak dari sensor suara selama rentang waktu tertentu.
- * Digunakan untuk mengukur kekuatan/amplitudo getaran suara AC dari mic.
- */
 unsigned int getSoundLevel(unsigned long durationMs) {
   unsigned long start = millis();
   unsigned long sumDiff = 0;
@@ -393,13 +441,10 @@ unsigned int getSoundLevel(unsigned long durationMs) {
   }
 
   unsigned int mad = (sampleCount > 0) ? (sumDiff / sampleCount) : 0;
-  
-  // Gunakan nilai MAD langsung (tanpa dikali 2) agar tidak mudah mentok ke maksimum
   unsigned int soundLevel = mad;
 
-  // Debug output untuk menganalisis karakteristik sinyal analog
   static unsigned long lastDebugPrint = 0;
-  if (millis() - lastDebugPrint >= 200) { // Cetak 5 kali per detik
+  if (millis() - lastDebugPrint >= 200) {
     lastDebugPrint = millis();
     Serial.print(F("[ADC Debug] Bias: "));
     Serial.print(micDCOffset);
@@ -412,38 +457,26 @@ unsigned int getSoundLevel(unsigned long durationMs) {
   return soundLevel;
 }
 
-/**
- * Menampilkan bar level volume pada strip LED.
- * LED bawah: Hijau, Tengah: Kuning/Oranye, Atas: Merah.
- */
 void displayVolumeLevel(int numLedsLit) {
   pixels.clear();
-  int greenMax = (NUM_LEDS * 25) / 55;   // Skala dinamis berdasarkan rasio asli
-  int orangeMax = (NUM_LEDS * 42) / 55;  // Skala dinamis berdasarkan rasio asli
+  int greenMax = (NUM_LEDS * 25) / 55;
+  int orangeMax = (NUM_LEDS * 42) / 55;
   for (int i = 0; i < NUM_LEDS; i++) {
     if (i < numLedsLit) {
       if (i < greenMax) {
-        // LED Hijau (Full Brightness)
         pixels.setPixelColor(i, pixels.Color(0, 255, 0));
       } else if (i < orangeMax) {
-        // LED Kuning/Oranye (Full Brightness)
         pixels.setPixelColor(i, pixels.Color(255, 136, 0));
       } else {
-        // LED Merah (Full Brightness)
         pixels.setPixelColor(i, pixels.Color(255, 0, 0));
       }
     } else {
-      pixels.setPixelColor(i, pixels.Color(0, 0, 0)); // Matikan LED sisa
+      pixels.setPixelColor(i, pixels.Color(0, 0, 0));
     }
   }
   pixels.show();
 }
 
-/**
- * Animasi hasil teriakan biasa (jika tidak melampaui rekor).
- * Mengedipkan level yang dicapai sebanyak 3 kali, lalu bar utama runtuh secara cepat dengan efek gravitasi, 
- * diikuti oleh pixel puncak (peak hold) yang turun perlahan secara dinamis.
- */
 void runNormalResultAnimation(int finalLeds) {
   if (finalLeds <= 0) {
     pixels.clear();
@@ -451,7 +484,6 @@ void runNormalResultAnimation(int finalLeds) {
     return;
   }
 
-  // 1. Kedipkan level hasil teriakan sebanyak 3 kali untuk memperjelas hasil
   for (int flash = 0; flash < 3; flash++) {
     displayVolumeLevel(finalLeds);
     safeDelay(250);
@@ -460,32 +492,28 @@ void runNormalResultAnimation(int finalLeds) {
     safeDelay(150);
   }
 
-  // Tampilkan level volume puncak penuh sejenak sebelum animasi runtuh
   displayVolumeLevel(finalLeds);
   safeDelay(500);
 
-  // 2. Animasi Runtuh Gravitasi (Gravity Collapse) dengan Peak Hold
   float barHeight = finalLeds;
   float barVelocity = 0.0;
-  float barGravity = 0.3; // Gravitasi untuk bar utama agar jatuh dengan cepat
+  float barGravity = 0.3;
 
   float peakPos = finalLeds - 1;
   float peakVelocity = 0.0;
-  float peakGravity = 0.15; // Gravitasi untuk pixel puncak agar melayang lebih lambat
-  int peakHoldFrames = 15;   // Tahan pixel puncak selama ~600ms (15 frames * 40ms)
+  float peakGravity = 0.15;
+  int peakHoldFrames = 15;
 
   int greenMax = (NUM_LEDS * 25) / 55;
   int orangeMax = (NUM_LEDS * 42) / 55;
 
   while (barHeight > 0 || peakPos > 0) {
-    // Fisika kejatuhan bar utama
     if (barHeight > 0) {
       barVelocity += barGravity;
       barHeight -= barVelocity;
       if (barHeight < 0) barHeight = 0;
     }
 
-    // Fisika kejatuhan pixel puncak (ditahan dulu beberapa frame)
     if (peakHoldFrames > 0) {
       peakHoldFrames--;
     } else {
@@ -496,10 +524,7 @@ void runNormalResultAnimation(int finalLeds) {
       }
     }
 
-    // Gambar frame
     pixels.clear();
-    
-    // Gambar bar utama
     for (int i = 0; i < (int)barHeight; i++) {
       if (i < greenMax) {
         pixels.setPixelColor(i, pixels.Color(0, 255, 0));
@@ -510,10 +535,8 @@ void runNormalResultAnimation(int finalLeds) {
       }
     }
 
-    // Gambar pixel puncak (jika berada di atas tinggi bar utama saat ini)
     int roundedPeak = (int)peakPos;
     if (roundedPeak >= (int)barHeight && roundedPeak < NUM_LEDS) {
-      // Warna pixel puncak yang dibuat sedikit lebih menyala
       if (roundedPeak < greenMax) {
         pixels.setPixelColor(roundedPeak, pixels.Color(0, 255, 0));
       } else if (roundedPeak < orangeMax) {
@@ -524,39 +547,30 @@ void runNormalResultAnimation(int finalLeds) {
     }
 
     pixels.show();
-    safeDelay(40); // Interval frame ~40ms (25 FPS)
+    safeDelay(40);
   }
 
-  // Pastikan bersih total
   pixels.clear();
   pixels.show();
 }
 
-/**
- * Animasi Pelangi (Rainbow Cycle) berputar untuk perayaan rekor baru.
- */
 void runCelebrationAnimation(unsigned long durationMs) {
   unsigned long start = millis();
   uint16_t colorOffset = 0;
 
   while (millis() - start < durationMs) {
     for (uint16_t i = 0; i < pixels.numPixels(); i++) {
-      // Menghasilkan perputaran spektrum warna di seluruh strip LED
       pixels.setPixelColor(i, Wheel(((i * 256 / pixels.numPixels()) + colorOffset) & 255));
     }
     pixels.show();
     safeDelay(15);
-    colorOffset += 3; // Kecepatan putaran pelangi
+    colorOffset += 3;
   }
 
-  // Bersihkan strip LED di akhir animasi
   pixels.clear();
   pixels.show();
 }
 
-/**
- * Menghasilkan warna RGB berdasarkan roda warna 0-255.
- */
 uint32_t Wheel(byte WheelPos) {
   WheelPos = 255 - WheelPos;
   if (WheelPos < 85) {
@@ -570,14 +584,9 @@ uint32_t Wheel(byte WheelPos) {
   return pixels.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
 }
 
-/**
- * Kalibrasi kebisingan suara sekitar saat booting atau setelah reset.
- * Berjalan selama 1.5 detik dengan visualisasi LED warna oranye berputar.
- */
 void calibrateNoiseFloor() {
   Serial.println(F("Mengkalibrasi kebisingan suara sekitar..."));
   
-  // 1. Kalibrasi DC Offset (bias tengah) dari sinyal analog Mic saat kondisi hening
   unsigned long biasSum = 0;
   for (int i = 0; i < 1000; i++) {
     biasSum += analogRead(MIC_PIN);
@@ -597,7 +606,6 @@ void calibrateNoiseFloor() {
       maxAmbient = level;
     }
     
-    // Tampilkan LED oranye berputar dengan efek ekor (trail) selama kalibrasi
     pixels.clear();
     for (int t = 0; t < 8; t++) {
       int idx = (calLed - t + NUM_LEDS) % NUM_LEDS;
@@ -607,17 +615,15 @@ void calibrateNoiseFloor() {
     }
     pixels.show();
     calLed = (calLed + 1) % NUM_LEDS;
-    safeDelay(10); // Gabungan dengan getSoundLevel(10) menghasilkan jeda ~20ms (50 FPS)
+    safeDelay(10);
   }
 
-  // Set noise floor 30 level di atas puncak kebisingan sekitar agar tidak gampang terpicu
   calibratedNoiseFloor = maxAmbient + 30;
-  if (calibratedNoiseFloor < 40) calibratedNoiseFloor = 40; // Batas minimal noise floor
+  if (calibratedNoiseFloor < 40) calibratedNoiseFloor = 40;
 
   Serial.print(F("Kalibrasi Selesai. Noise Floor diset ke: "));
   Serial.println(calibratedNoiseFloor);
 
-  // Nyalakan LED Hijau seluruhnya 3 kali untuk tanda siap digunakan
   for (int i = 0; i < 3; i++) {
     for (int l = 0; l < NUM_LEDS; l++) {
       pixels.setPixelColor(l, pixels.Color(0, 255, 0));
@@ -630,10 +636,23 @@ void calibrateNoiseFloor() {
   }
 }
 
-/**
- * Menyalakan sejumlah LED tertentu dengan warna solid.
- * Digunakan untuk visualisasi countdown.
- */
+void playBeepTone(uint16_t freqHz, uint16_t durationMs) {
+  stopWavTrack();
+
+  // Ubah frekuensi PWM ke frekuensi nada Beep yang diinginkan
+  ledcSetup(LEDC_PWM_CHANNEL, freqHz, LEDC_PWM_RES);
+  ledcWrite(LEDC_PWM_CHANNEL, 128); // Gelombang kotak 50% duty cycle
+
+  delay(durationMs);
+
+  // Matikan nada Beep
+  ledcWrite(LEDC_PWM_CHANNEL, 0);
+
+  // Kembalikan konfigurasi PWM ke frekuensi carrier 250kHz untuk pemutaran audio WAV
+  ledcSetup(LEDC_PWM_CHANNEL, LEDC_PWM_FREQ, LEDC_PWM_RES);
+  ledcWrite(LEDC_PWM_CHANNEL, 128);
+}
+
 void displaySimpleColor(int count, uint32_t color) {
   pixels.clear();
   for (int i = 0; i < count; i++) {
@@ -642,194 +661,35 @@ void displaySimpleColor(int count, uint32_t color) {
   pixels.show();
 }
 
-/**
- * Menjalankan animasi countdown visual 3-2-1 sebelum mulai merekam teriakan.
- */
 void runCountdownAnimation() {
-  // Hitung mundur 3 (Menyalakan seluruh 3/3 LED - Jingga)
+  // Hitung mundur 3 (LED Jingga + Beep 1000Hz)
   Serial.println(F("Countdown: 3"));
   displaySimpleColor(NUM_LEDS, pixels.Color(255, 85, 0));
-  safeDelay(1000);
+  playBeepTone(1000, 150);
+  safeDelay(850);
   
-  // Hitung mundur 2 (Menyalakan 2/3 LED - Kuning)
+  // Hitung mundur 2 (LED Kuning + Beep 1000Hz)
   Serial.println(F("Countdown: 2"));
   displaySimpleColor((NUM_LEDS * 2) / 3, pixels.Color(255, 191, 0));
-  safeDelay(1000);
+  playBeepTone(1000, 150);
+  safeDelay(850);
   
-  // Hitung mundur 1 (Menyalakan 1/3 LED - Merah)
+  // Hitung mundur 1 (LED Merah + Beep 1000Hz)
   Serial.println(F("Countdown: 1"));
   displaySimpleColor((NUM_LEDS * 1) / 3, pixels.Color(255, 0, 0));
-  safeDelay(1000);
+  playBeepTone(1000, 150);
+  safeDelay(850);
   
-  // MULAI! (Menyalakan seluruh LED - Hijau)
+  // MULAI! (LED Hijau + High Pitch Beep 2000Hz)
   Serial.println(F("MULAI BERTERIAK!"));
   displaySimpleColor(NUM_LEDS, pixels.Color(0, 255, 0));
-  safeDelay(500);
+  playBeepTone(2000, 400);
+  safeDelay(100);
   
   pixels.clear();
   pixels.show();
 }
 
-// ====================================================================
-// IMPLEMENTASI FUNGSI DRIVER DFPLAYER CUSTOM (SIASAT STABILITAS)
-// ====================================================================
-
-/**
- * Mengirim paket perintah 10-byte ke DFPlayer Mini dengan checksum manual.
- */
-void sendDFPlayerCmd(uint8_t cmd, uint16_t parameter) {
-  uint8_t packet[10];
-  packet[0] = 0x7E; // Start Byte
-  packet[1] = 0xFF; // Version
-  packet[2] = 0x06; // Length
-  packet[3] = cmd;
-  packet[4] = 0x00; // Feedback (0x00 = No Feedback)
-  packet[5] = (parameter >> 8) & 0xFF; // Parameter High
-  packet[6] = parameter & 0xFF;        // Parameter Low
-  
-  // Hitung Checksum
-  int16_t checksum = 0;
-  for (int i = 1; i <= 6; i++) {
-    checksum -= packet[i];
-  }
-  
-  packet[7] = (checksum >> 8) & 0xFF; // Checksum High
-  packet[8] = checksum & 0xFF;        // Checksum Low
-  packet[9] = 0xEF; // End Byte
-  
-  dfSerial.write(packet, 10);
-  
-  Serial.print(F("DFPlayer Sent - CMD: 0x"));
-  Serial.print(cmd, HEX);
-  Serial.print(F(", Param: 0x"));
-  Serial.println(parameter, HEX);
-}
-
-/**
- * Mengatur volume DFPlayer secara aman (dibatasi 0-30).
- */
-void setDFPlayerVolume(uint8_t volume) {
-  volume = constrain(volume, 0, 30); // Siasat Volume Overflow
-  sendDFPlayerCmd(DF_CMD_SET_VOLUME, volume);
-}
-
-/**
- * Memutar trek lagu berdasarkan indeks file.
- */
-void playDFPlayerTrack(uint16_t track) {
-  sendDFPlayerCmd(DF_CMD_PLAY_TRACK, track);
-  dfplayerPlaying = true;
-  dfplayerPlayStartTime = millis();
-}
-
-/**
- * Menghentikan pemutaran lagu pada DFPlayer Mini.
- */
-void stopDFPlayer() {
-  sendDFPlayerCmd(DF_CMD_STOP, 0);
-  dfplayerPlaying = false;
-}
-
-/**
- * Parser masukan serial asinkron non-blocking dari DFPlayer.
- * Menerapkan siasat 1-byte read alignment untuk menjaga sinkronisasi byte serial.
- */
-void parseDFPlayer() {
-  while (dfSerial.available() > 0) {
-    // Siasat 1: Cari start byte 0x7E satu per satu
-    if (dfSerial.peek() != 0x7E) {
-      dfSerial.read(); // Buang byte yang tidak selaras
-      continue;
-    }
-    
-    // Siasat 2: Setelah start byte terdeteksi, pastikan sisa paket (10 byte total) sudah lengkap
-    if (dfSerial.available() < 10) {
-      break; // Tunggu sisa byte pada iterasi loop berikutnya
-    }
-    
-    // Baca penuh 10 byte paket
-    uint8_t packet[10];
-    for (int i = 0; i < 10; i++) {
-      packet[i] = dfSerial.read();
-    }
-    
-    // Validasi struktur akhir paket dan checksum
-    if (packet[9] == 0xEF) {
-      int16_t checksum = 0;
-      for (int i = 1; i <= 6; i++) {
-        checksum -= packet[i];
-      }
-      
-      uint16_t receivedChecksum = (packet[7] << 8) | packet[8];
-      if ((uint16_t)checksum == receivedChecksum) {
-        uint8_t cmd = packet[3];
-        uint16_t param = (packet[5] << 8) | packet[6];
-        
-        // Tandai modul online karena telah merespon komunikasi serial dengan valid
-        dfPlayerOnline = true;
-        
-        if (cmd == DF_EVT_PLAY_FINISHED) {
-          Serial.print(F("DFPlayer Event: Selesai Memutar Lagu "));
-          Serial.println(param);
-          dfplayerPlaying = false;
-        } else if (cmd == 0x3A) {
-          Serial.println(F("DFPlayer Event: Kartu Memori Dimasukkan!"));
-        } else if (cmd == 0x3B) {
-          Serial.println(F("DFPlayer Event: Kartu Memori Dicabut!"));
-        } else if (cmd == DF_EVT_STATUS_RESP) {
-          if (param == 0) { // 0 = stopped/idle, 1 = playing, 2 = paused
-            Serial.println(F("DFPlayer Status: STOPPED (Query 0x42)"));
-            dfplayerPlaying = false;
-          } else if (param == 1) {
-            dfplayerPlaying = true;
-          }
-        } else if (cmd == DF_EVT_ERROR) {
-          Serial.print(F("DFPlayer Event - Error: "));
-          switch (param) {
-            case 1: Serial.println(F("Modul Sibuk / Kartu tidak terdeteksi")); break;
-            case 2: Serial.println(F("Modul Sedang Tidur (Sleep Mode)")); break;
-            case 3: Serial.println(F("Format Komunikasi Serial Salah!")); break;
-            case 4: Serial.println(F("Checksum Tidak Cocok!")); break;
-            case 5: Serial.println(F("Indeks File di Luar Batas")); break;
-            case 6: Serial.println(F("File Musik Tidak Ditemukan!")); break;
-            case 7: Serial.println(F("Sedang dalam mode Iklan (Advertise)")); break;
-            default:
-              Serial.print(F("Kode Error Tidak Dikenal: "));
-              Serial.println(param);
-              break;
-          }
-          dfplayerPlaying = false;
-        }
-      } else {
-        Serial.println(F("DFPlayer RX: Checksum Mismatch!"));
-      }
-    } else {
-      Serial.println(F("DFPlayer RX: End Byte (0xEF) Mismatch!"));
-    }
-  }
-}
-
-/**
- * Fungsi delay aman non-blocking yang tetap menjalankan parser data DFPlayer 
- * dan pengecekan timeout di latar belakang selama masa tunggu.
- */
 void safeDelay(unsigned long ms) {
-  unsigned long start = millis();
-  while (millis() - start < ms) {
-    parseDFPlayer();
-    
-    if (dfPlayerOnline) {
-      static unsigned long lastQueryTime = 0;
-      if (dfplayerPlaying && (millis() - lastQueryTime >= 1500)) {
-        lastQueryTime = millis();
-        sendDFPlayerCmd(DF_CMD_QUERY_STATUS, 0);
-      }
-      if (dfplayerPlaying && (millis() - dfplayerPlayStartTime >= 300000UL)) {
-        Serial.println(F("DFPlayer Safety Timeout tercapai! Memaksa stop..."));
-        stopDFPlayer();
-      }
-    }
-    
-    delay(5); // Jeda singkat agar tidak membebani prosesor secara penuh
-  }
+  delay(ms);
 }
