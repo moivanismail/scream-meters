@@ -5,12 +5,25 @@
 // ==========================================
 // KONFIGURASI PIN & KONSTANTA
 // ==========================================
-#define MIC_PIN             34    // Pin analog untuk output sensor Mic MAX4466 (GPIO34 / ADC1_CH6)
-#define DFPLAYER_RX         16    // Pin GPIO16 terhubung ke TX DFPlayer Mini (UART2 RX)
-#define DFPLAYER_TX         17    // Pin GPIO17 terhubung ke RX DFPlayer Mini (UART2 TX - gunakan resistor 1kΩ seri)
-#define NEOPIXEL_PIN        27    // Pin GPIO27 terhubung ke Data Input WS2812B
-#define RESET_BUTTON_PIN    25    // Pin GPIO25 terhubung ke tombol reset high score (ke GND)
-#define START_BUTTON_PIN    26    // Pin GPIO26 terhubung ke tombol start game (ke GND)
+#if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(ARDUINO_ESP32C3_DEV) || defined(ESP32C3)
+  // Pinout ESP32-C3 Super Mini
+  #define MIC_PIN             0     // Pin analog sensor Mic MAX4466 (GPIO0 / ADC1_CH0)
+  #define DFPLAYER_RX         7     // Pin GPIO7 terhubung ke TX DFPlayer Mini (UART1 RX)
+  #define DFPLAYER_TX         6     // Pin GPIO6 terhubung ke RX DFPlayer Mini (UART1 TX - gunakan resistor 1kΩ seri)
+  #define NEOPIXEL_PIN        10    // Pin GPIO10 terhubung ke Data Input WS2812B
+  #define RESET_BUTTON_PIN    5     // Pin GPIO5 terhubung ke tombol reset high score (ke GND)
+  #define START_BUTTON_PIN    4     // Pin GPIO4 terhubung ke tombol start game (ke GND)
+  #define dfSerial            Serial1
+#else
+  // Pinout ESP32 Classic (WROOM-32)
+  #define MIC_PIN             34    // Pin analog untuk output sensor Mic MAX4466 (GPIO34 / ADC1_CH6)
+  #define DFPLAYER_RX         16    // Pin GPIO16 terhubung ke TX DFPlayer Mini (UART2 RX)
+  #define DFPLAYER_TX         17    // Pin GPIO17 terhubung ke RX DFPlayer Mini (UART2 TX - gunakan resistor 1kΩ seri)
+  #define NEOPIXEL_PIN        27    // Pin GPIO27 terhubung ke Data Input WS2812B
+  #define RESET_BUTTON_PIN    25    // Pin GPIO25 terhubung ke tombol reset high score (ke GND)
+  #define START_BUTTON_PIN    26    // Pin GPIO26 terhubung ke tombol start game (ke GND)
+  #define dfSerial            Serial2
+#endif
 
 #define NUM_LEDS            62    // Jumlah total LED WS2812B
 #define EEPROM_ADDR_SCORE   0     // Alamat EEPROM untuk menyimpan rekor tertinggi (2 byte)
@@ -44,7 +57,6 @@ enum GameState {
 // ==========================================
 // INSTANSIALISASI OBJEK
 // ==========================================
-#define dfSerial Serial2
 Adafruit_NeoPixel pixels(NUM_LEDS, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
 // ==========================================

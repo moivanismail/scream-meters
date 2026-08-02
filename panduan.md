@@ -1,12 +1,12 @@
-# 🎙️ Panduan Lengkap Proyek Scream Meter (ESP32 Classic)
+# 🎙️ Panduan Lengkap Proyek Scream Meter (ESP32-C3 Super Mini)
 
-Panduan ini berisi semua instruksi yang diperlukan untuk membangun, merakit, dan mengonfigurasi proyek **Scream Meter** (Game Teriak) menggunakan mikrokomputer **ESP32 Classic** (CP2102), sensor suara **MAX4466**, **DFPlayer Mini**, dan strip **NeoPixel WS2812B**.
+Panduan ini berisi semua instruksi yang diperlukan untuk membangun, merakit, dan mengonfigurasi proyek **Scream Meter** (Game Teriak) menggunakan mikrokontroler **ESP32-C3 Super Mini**, sensor suara **MAX4466**, **DFPlayer Mini**, dan strip **NeoPixel WS2812B**.
 
 ---
 
 ## 🛠️ Komponen yang Diperlukan
 
-1. **Mikrokontroler**: ESP32 Classic Development Board (30-Pin / 38-Pin CP2102)
+1. **Mikrokontroler**: ESP32-C3 Super Mini Board
 2. **Sensor Suara**: MAX4466 Electret Microphone Preamplifier
 3. **LED Bar**: WS2812B NeoPixel RGB LED Strip (62 LED)
 4. **Modul Suara**: DFPlayer Mini MP3 Player + Speaker (4Ω 3W)
@@ -16,40 +16,43 @@ Panduan ini berisi semua instruksi yang diperlukan untuk membangun, merakit, dan
 
 ---
 
-## 🔌 Skema Perkabelan (Wiring Diagram)
+## 🔌 Skema Perkabelan (Wiring Diagram ESP32-C3 Super Mini)
 
-Untuk menghindari pin JTAG debug, jalur memori flash internal, dan pin *boot strapping* (yang dapat menyebabkan ESP32 gagal boot), gunakan pemetaan pin yang aman di bawah ini:
+Untuk menghindari pin JTAG debug, jalur memori flash internal, dan pin *boot strapping* (yang dapat menyebabkan ESP32-C3 gagal boot), gunakan pemetaan pin yang aman di bawah ini:
 
-| Komponen | Pin Komponen | Pin ESP32 Classic | Deskripsi / Fungsi |
+| Komponen | Pin Komponen | Pin ESP32-C3 Super Mini | Deskripsi / Fungsi |
 | :--- | :--- | :--- | :--- |
 | **MAX4466 Mic** | VCC | **3V3** | Daya 3.3V (Sangat disarankan untuk stabilitas analog) |
 | | GND | **GND** | Ground Bersama |
-| | OUT | **GPIO 34** | Input Analog ADC1_CH6 (Input-only, tanpa pull-up internal) |
-| **WS2812B LED** | VCC | **3V3** | Daya 3.3V (Membantu pencocokan level logika 3.3V) |
+| | OUT | **GPIO 0** | Input Analog ADC1_CH0 (Channel ADC1 presisi tinggi) |
+| **WS2812B LED** | VCC | **5V / 3V3** | Daya Utama LED Strip |
 | | GND | **GND** | Ground Bersama |
-| | DIN (Data In) | **GPIO 27** | Jalur sinyal data LED |
-| **Tombol Start** | PIN | **GPIO 26** | Dihubungkan ke GND saat ditekan (INPUT_PULLUP) |
-| **Tombol Reset** | PIN | **GPIO 25** | Dihubungkan ke GND saat ditekan (INPUT_PULLUP) |
-| **DFPlayer Mini**| VCC | **5V / VIN** | Membutuhkan tegangan 5V stabil untuk amplifier speaker |
+| | DIN (Data In) | **GPIO 10** | Jalur sinyal data LED (Aman dari strapping pin) |
+| **Tombol Start** | PIN | **GPIO 4** | Dihubungkan ke GND saat ditekan (`INPUT_PULLUP`) |
+| **Tombol Reset** | PIN | **GPIO 5** | Dihubungkan ke GND saat ditekan (`INPUT_PULLUP`) |
+| **DFPlayer Mini**| VCC | **5V** | Membutuhkan tegangan 5V stabil untuk amplifier speaker |
 | | GND | **GND** | Ground Bersama |
-| | TX | **GPIO 16** | Masuk ke UART2 RX2 ESP32 |
-| | RX | **GPIO 17** | Dari UART2 TX2 ESP32 (Wajib dipasang resistor 1kΩ seri) |
+| | TX | **GPIO 7** | Masuk ke UART1 RX ESP32-C3 |
+| | RX | **GPIO 6** | Dari UART1 TX ESP32-C3 (Wajib dipasang resistor 1kΩ seri) |
 
 > [!CAUTION]
-> **Pasang Resistor 1kΩ secara seri** pada kabel dari pin **GPIO 17 (TX2 ESP32)** menuju pin **RX DFPlayer Mini**. Siasat ini sangat krusial untuk meredam kebisingan arus balik digital (*serial noise*) dan melindungi port input DFPlayer Mini (yang beroperasi pada tegangan logika 3.3V sensitif).
+> **Pasang Resistor 1kΩ secara seri** pada kabel dari pin **GPIO 6 (TX ESP32-C3)** menuju pin **RX DFPlayer Mini**. Siasat ini sangat krusial untuk meredam kebisingan arus balik digital (*serial noise*) dan melindungi port input DFPlayer Mini (yang beroperasi pada tegangan logika 3.3V sensitif).
 
 ---
 
 ## 💻 Pengaturan Lingkungan Software (PlatformIO)
 
-Gunakan konfigurasi berikut pada file `platformio.ini` Anda. Sangat penting menggunakan versi platform `@6.6.0` karena menggunakan **Arduino Core 2.0.14** yang terbukti sangat stabil dengan driver RMT NeoPixel (versi Core 3.0.x terbaru memiliki masalah stack overflow yang sering membuat NeoPixel crash).
+Gunakan konfigurasi berikut pada file `platformio.ini` Anda. Flag `ARDUINO_USB_CDC_ON_BOOT=1` diperlukan agar Serial Monitor bekerja langsung melalui USB Type-C internal ESP32-C3:
 
 ```ini
-[env:esp32dev]
+[env:esp32-c3-super-mini]
 platform = espressif32 @ 6.6.0
-board = esp32dev
+board = esp32-c3-devkitm-1
 framework = arduino
 monitor_speed = 9600
+build_flags = 
+    -D ARDUINO_USB_MODE=1
+    -D ARDUINO_USB_CDC_ON_BOOT=1
 lib_deps =
     adafruit/Adafruit NeoPixel
 ```
