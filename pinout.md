@@ -19,7 +19,7 @@ Tabel berikut memandu penghubungan pin antar modul untuk kedua jenis mikrokontro
 | **Elco 470µF (Buffer LED)** | **+** / **-** | **5V** / **GND** | **5V** / **GND** | **Penting**: Menyerap lonjakan arus LED (Pencegah Pop Audio) |
 | **Audio Out (AUX)** | Signal Out | **GPIO 1** (via Filter RC) | **GPIO 25** (via Filter RC) | Ke Pin Tip/Signal Speaker Aktif |
 | | Ground | **GND** | **GND** | Ke Pin Sleeve/Ground Speaker |
-| **Tombol Start** | PIN | **GPIO 4** | **GPIO 26** | Terhubung ke GND (`INPUT_PULLUP`) |
+| **Tombol Start** | PIN | **GPIO 6** | **GPIO 26** | Terhubung ke GND (`INPUT_PULLUP`) |
 | **Tombol Reset** | PIN | **GPIO 5** | **GPIO 25** | Terhubung ke GND (`INPUT_PULLUP`) |
 
 ---
@@ -58,8 +58,8 @@ GND ---------------------------------------+----------------------------> Ground
   (Mic)  GPIO 0  --- | [4]           [13]| --- GPIO 9  (BOOT Strapping)
 (Audio)  GPIO 1  --- | [5]           [12]| --- GPIO 8  (Strapping / CS)
          GPIO 2  --- | [6]           [11]| --- GPIO 7  
-         GPIO 3  --- | [7]           [10]| --- GPIO 6  
-(Start)  GPIO 4  --- | [8]           [9] | --- GPIO 5  (Reset Button)
+         GPIO 3  --- | [7]           [10]| --- GPIO 6  (Start Button)
+         GPIO 4  --- | [8]           [9] | --- GPIO 5  (Reset Button)
                      +-------------------+
 ```
 

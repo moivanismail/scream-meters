@@ -17,7 +17,7 @@
   #define AUDIO_PWM_PIN       1     // Pin Output Audio PWM ke Filter RCPasif & Speaker Aktif (GPIO1)
   #define NEOPIXEL_PIN        10    // Pin GPIO10 terhubung ke Data Input WS2812B
   #define RESET_BUTTON_PIN    5     // Pin GPIO5 terhubung ke tombol reset high score (ke GND)
-  #define START_BUTTON_PIN    4     // Pin GPIO4 terhubung ke tombol start game (ke GND)
+  #define START_BUTTON_PIN    6     // Pin GPIO6 terhubung ke tombol start game (ke GND)
 #else
   // Pinout ESP32 Classic (WROOM-32)
   #define MIC_PIN             34    // Pin analog untuk output sensor Mic MAX4466 (GPIO34 / ADC1_CH6)
